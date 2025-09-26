@@ -2,8 +2,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import DashboardLayout from "./components/layout/DashboardLayout";
+import DashboardPage from "./pages/DashboardPage";
+import TableManagementPage from "./pages/TableManagementPage";
+import StaffManagementPage from "./pages/StaffManagementPage";
+import MenuManagementPage from "./pages/MenuManagementPage";
+import BookingManagementPage from "./pages/BookingManagementPage";
+import FeedbackPage from "./pages/FeedbackPage";
+import PromotionPage from "./pages/PromotionPage";
+import ReportsPage from "./pages/ReportsPage";
+import TransactionsPage from "./pages/TransactionsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,7 +24,18 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin" element={<DashboardLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="tables" element={<TableManagementPage />} />
+            <Route path="staff" element={<StaffManagementPage />} />
+            <Route path="menu" element={<MenuManagementPage />} />
+            <Route path="bookings" element={<BookingManagementPage />} />
+            <Route path="feedback" element={<FeedbackPage />} />
+            <Route path="promotions" element={<PromotionPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="transactions" element={<TransactionsPage />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
