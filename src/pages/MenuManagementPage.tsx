@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import MenuItemFormModal from "@/components/forms/MenuItemFormModal";
+import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 interface MenuItem {
   id: number;
@@ -20,9 +22,14 @@ const MenuManagementPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"add" | "edit">("add");
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock data
-  const [menuItems] = useState<MenuItem[]>([
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { id: 1, name: "Caesar Salad", category: "appetizer", price: 12.99, description: "Fresh romaine lettuce with parmesan cheese", status: "available", prepTime: 10 },
     { id: 2, name: "Grilled Salmon", category: "main", price: 28.99, description: "Atlantic salmon with lemon butter sauce", status: "available", prepTime: 25 },
     { id: 3, name: "Chocolate Lava Cake", category: "dessert", price: 8.99, description: "Warm chocolate cake with vanilla ice cream", status: "available", prepTime: 15 },
@@ -63,25 +70,58 @@ const MenuManagementPage = () => {
   };
 
   const handleAddMenuItem = () => {
-    toast({
-      title: "Add Menu Item",
-      description: "Menu item creation form would open here",
-    });
+    setFormMode("add");
+    setSelectedMenuItem(undefined);
+    setIsFormModalOpen(true);
   };
 
   const handleEditMenuItem = (item: MenuItem) => {
-    toast({
-      title: "Edit Menu Item",
-      description: `Edit form for ${item.name} would open here`,
-    });
+    setFormMode("edit");
+    setSelectedMenuItem(item);
+    setIsFormModalOpen(true);
   };
 
   const handleDeleteMenuItem = (item: MenuItem) => {
-    toast({
-      title: "Delete Menu Item",
-      description: `Confirmation dialog for removing ${item.name} would appear here`,
-      variant: "destructive",
-    });
+    setSelectedMenuItem(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (formMode === "add") {
+      const newMenuItem: MenuItem = {
+        id: Math.max(...menuItems.map(m => m.id)) + 1,
+        ...data,
+      };
+      setMenuItems([...menuItems, newMenuItem]);
+    } else if (formMode === "edit" && selectedMenuItem) {
+      setMenuItems(menuItems.map(m => 
+        m.id === selectedMenuItem.id ? { ...selectedMenuItem, ...data } : m
+      ));
+    }
+    setIsFormModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedMenuItem) return;
+    
+    setIsSubmitting(true);
+    try {
+      setMenuItems(menuItems.filter(m => m.id !== selectedMenuItem.id));
+      toast({
+        title: "Menu Item Removed",
+        description: `${selectedMenuItem.name} has been removed from the menu.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedMenuItem(undefined);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove menu item. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -236,6 +276,24 @@ const MenuManagementPage = () => {
           </Card>
         ))}
       </div>
+
+      <MenuItemFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        menuItem={selectedMenuItem}
+        mode={formMode}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Remove Menu Item"
+        description="Are you sure you want to remove"
+        itemName={selectedMenuItem?.name}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

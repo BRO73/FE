@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import PromotionFormModal from "@/components/forms/PromotionFormModal";
+import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 interface Promotion {
   id: number;
@@ -24,9 +26,14 @@ const PromotionPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"add" | "edit">("add");
+  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock data
-  const [promotions] = useState<Promotion[]>([
+  const [promotions, setPromotions] = useState<Promotion[]>([
     { id: 1, title: "Weekend Special", description: "20% off all main courses during weekends", discountType: "percentage", discountValue: 20, startDate: "2024-03-01", endDate: "2024-03-31", status: "active", usageCount: 45, maxUsage: 100, code: "WEEKEND20" },
     { id: 2, title: "Happy Hour", description: "$5 off all beverages from 5-7 PM", discountType: "fixed", discountValue: 5, startDate: "2024-03-01", endDate: "2024-03-31", status: "active", usageCount: 128, code: "HAPPY5" },
     { id: 3, title: "First Timer", description: "15% discount for new customers", discountType: "percentage", discountValue: 15, startDate: "2024-02-01", endDate: "2024-12-31", status: "active", usageCount: 67, code: "FIRSTTIME15" },
@@ -60,25 +67,59 @@ const PromotionPage = () => {
   };
 
   const handleAddPromotion = () => {
-    toast({
-      title: "Add Promotion",
-      description: "Promotion creation form would open here",
-    });
+    setFormMode("add");
+    setSelectedPromotion(undefined);
+    setIsFormModalOpen(true);
   };
 
   const handleEditPromotion = (promotion: Promotion) => {
-    toast({
-      title: "Edit Promotion",
-      description: `Edit form for ${promotion.title} would open here`,
-    });
+    setFormMode("edit");
+    setSelectedPromotion(promotion);
+    setIsFormModalOpen(true);
   };
 
   const handleDeletePromotion = (promotion: Promotion) => {
-    toast({
-      title: "Delete Promotion",
-      description: `Confirmation dialog for removing ${promotion.title} would appear here`,
-      variant: "destructive",
-    });
+    setSelectedPromotion(promotion);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (formMode === "add") {
+      const newPromotion: Promotion = {
+        id: Math.max(...promotions.map(p => p.id)) + 1,
+        usageCount: 0,
+        ...data,
+      };
+      setPromotions([...promotions, newPromotion]);
+    } else if (formMode === "edit" && selectedPromotion) {
+      setPromotions(promotions.map(p => 
+        p.id === selectedPromotion.id ? { ...selectedPromotion, ...data } : p
+      ));
+    }
+    setIsFormModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedPromotion) return;
+    
+    setIsSubmitting(true);
+    try {
+      setPromotions(promotions.filter(p => p.id !== selectedPromotion.id));
+      toast({
+        title: "Promotion Deleted",
+        description: `${selectedPromotion.title} has been deleted successfully.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedPromotion(undefined);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete promotion. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isExpiringSoon = (endDate: string) => {
@@ -314,6 +355,24 @@ const PromotionPage = () => {
           </Card>
         ))}
       </div>
+
+      <PromotionFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        promotion={selectedPromotion}
+        mode={formMode}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Promotion"
+        description="Are you sure you want to delete"
+        itemName={selectedPromotion?.title}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

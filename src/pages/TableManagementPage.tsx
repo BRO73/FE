@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import TableFormModal from "@/components/forms/TableFormModal";
+import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 interface Table {
   id: number;
@@ -17,9 +19,14 @@ interface Table {
 const TableManagementPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"add" | "edit">("add");
+  const [selectedTable, setSelectedTable] = useState<Table | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock data
-  const [tables] = useState<Table[]>([
+  const [tables, setTables] = useState<Table[]>([
     { id: 1, number: "T01", floor: "Ground Floor", seats: 4, status: "available" },
     { id: 2, number: "T02", floor: "Ground Floor", seats: 2, status: "occupied" },
     { id: 3, number: "T03", floor: "Ground Floor", seats: 6, status: "reserved" },
@@ -46,25 +53,58 @@ const TableManagementPage = () => {
   };
 
   const handleAddTable = () => {
-    toast({
-      title: "Add Table",
-      description: "Table creation form would open here",
-    });
+    setFormMode("add");
+    setSelectedTable(undefined);
+    setIsFormModalOpen(true);
   };
 
   const handleEditTable = (table: Table) => {
-    toast({
-      title: "Edit Table",
-      description: `Edit form for table ${table.number} would open here`,
-    });
+    setFormMode("edit");
+    setSelectedTable(table);
+    setIsFormModalOpen(true);
   };
 
   const handleDeleteTable = (table: Table) => {
-    toast({
-      title: "Delete Table",
-      description: `Confirmation dialog for deleting table ${table.number} would appear here`,
-      variant: "destructive",
-    });
+    setSelectedTable(table);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (formMode === "add") {
+      const newTable: Table = {
+        id: Math.max(...tables.map(t => t.id)) + 1,
+        ...data,
+      };
+      setTables([...tables, newTable]);
+    } else if (formMode === "edit" && selectedTable) {
+      setTables(tables.map(t => 
+        t.id === selectedTable.id ? { ...selectedTable, ...data } : t
+      ));
+    }
+    setIsFormModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedTable) return;
+    
+    setIsSubmitting(true);
+    try {
+      setTables(tables.filter(t => t.id !== selectedTable.id));
+      toast({
+        title: "Table Deleted",
+        description: `Table ${selectedTable.number} has been deleted successfully.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedTable(undefined);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete table. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -185,6 +225,24 @@ const TableManagementPage = () => {
           </Card>
         ))}
       </div>
+
+      <TableFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        table={selectedTable}
+        mode={formMode}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Table"
+        description="Are you sure you want to delete"
+        itemName={selectedTable?.number}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

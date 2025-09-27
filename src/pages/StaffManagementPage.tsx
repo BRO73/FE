@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import StaffFormModal from "@/components/forms/StaffFormModal";
+import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 interface Staff {
   id: number;
@@ -19,9 +21,14 @@ interface Staff {
 const StaffManagementPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"add" | "edit">("add");
+  const [selectedStaff, setSelectedStaff] = useState<Staff | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock data
-  const [staff] = useState<Staff[]>([
+  const [staff, setStaff] = useState<Staff[]>([
     { id: 1, name: "John Smith", role: "manager", email: "john@restaurant.com", phone: "+1 234-567-8901", status: "active", joinDate: "2023-01-15" },
     { id: 2, name: "Maria Garcia", role: "waiter", email: "maria@restaurant.com", phone: "+1 234-567-8902", status: "active", joinDate: "2023-03-20" },
     { id: 3, name: "David Chen", role: "chef", email: "david@restaurant.com", phone: "+1 234-567-8903", status: "active", joinDate: "2023-02-10" },
@@ -57,25 +64,58 @@ const StaffManagementPage = () => {
   };
 
   const handleAddStaff = () => {
-    toast({
-      title: "Add Staff Member",
-      description: "Staff creation form would open here",
-    });
+    setFormMode("add");
+    setSelectedStaff(undefined);
+    setIsFormModalOpen(true);
   };
 
   const handleEditStaff = (member: Staff) => {
-    toast({
-      title: "Edit Staff Member",
-      description: `Edit form for ${member.name} would open here`,
-    });
+    setFormMode("edit");
+    setSelectedStaff(member);
+    setIsFormModalOpen(true);
   };
 
   const handleDeleteStaff = (member: Staff) => {
-    toast({
-      title: "Delete Staff Member",
-      description: `Confirmation dialog for removing ${member.name} would appear here`,
-      variant: "destructive",
-    });
+    setSelectedStaff(member);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (formMode === "add") {
+      const newStaff: Staff = {
+        id: Math.max(...staff.map(s => s.id)) + 1,
+        ...data,
+      };
+      setStaff([...staff, newStaff]);
+    } else if (formMode === "edit" && selectedStaff) {
+      setStaff(staff.map(s => 
+        s.id === selectedStaff.id ? { ...selectedStaff, ...data } : s
+      ));
+    }
+    setIsFormModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedStaff) return;
+    
+    setIsSubmitting(true);
+    try {
+      setStaff(staff.filter(s => s.id !== selectedStaff.id));
+      toast({
+        title: "Staff Member Removed",
+        description: `${selectedStaff.name} has been removed from the team.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedStaff(undefined);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove staff member. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -225,6 +265,24 @@ const StaffManagementPage = () => {
           </Card>
         ))}
       </div>
+
+      <StaffFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        staff={selectedStaff}
+        mode={formMode}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Remove Staff Member"
+        description="Are you sure you want to remove"
+        itemName={selectedStaff?.name}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

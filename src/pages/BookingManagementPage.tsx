@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import BookingFormModal from "@/components/forms/BookingFormModal";
+import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 interface Booking {
   id: number;
@@ -23,9 +25,14 @@ const BookingManagementPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"add" | "edit">("add");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock data
-  const [bookings] = useState<Booking[]>([
+  const [bookings, setBookings] = useState<Booking[]>([
     { id: 1, customerName: "Alice Johnson", phone: "+1 234-567-8901", email: "alice@email.com", tableNumber: "T03", date: "2024-03-15", time: "19:00", partySize: 4, status: "confirmed", specialRequests: "Birthday celebration" },
     { id: 2, customerName: "Bob Smith", phone: "+1 234-567-8902", tableNumber: "T01", date: "2024-03-15", time: "18:30", partySize: 2, status: "confirmed" },
     { id: 3, customerName: "Carol Davis", phone: "+1 234-567-8903", email: "carol@email.com", tableNumber: "T05", date: "2024-03-15", time: "20:00", partySize: 6, status: "pending", specialRequests: "Vegetarian options needed" },
@@ -55,25 +62,60 @@ const BookingManagementPage = () => {
   };
 
   const handleAddBooking = () => {
-    toast({
-      title: "Add Booking",
-      description: "New booking form would open here",
-    });
+    setFormMode("add");
+    setSelectedBooking(undefined);
+    setIsFormModalOpen(true);
   };
 
   const handleEditBooking = (booking: Booking) => {
-    toast({
-      title: "Edit Booking",
-      description: `Edit form for ${booking.customerName}'s booking would open here`,
-    });
+    setFormMode("edit");
+    setSelectedBooking(booking);
+    setIsFormModalOpen(true);
   };
 
   const handleCancelBooking = (booking: Booking) => {
-    toast({
-      title: "Cancel Booking",
-      description: `Confirmation dialog for cancelling ${booking.customerName}'s booking would appear here`,
-      variant: "destructive",
-    });
+    setSelectedBooking(booking);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (formMode === "add") {
+      const newBooking: Booking = {
+        id: Math.max(...bookings.map(b => b.id)) + 1,
+        ...data,
+      };
+      setBookings([...bookings, newBooking]);
+    } else if (formMode === "edit" && selectedBooking) {
+      setBookings(bookings.map(b => 
+        b.id === selectedBooking.id ? { ...selectedBooking, ...data } : b
+      ));
+    }
+    setIsFormModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedBooking) return;
+    
+    setIsSubmitting(true);
+    try {
+      setBookings(bookings.map(b => 
+        b.id === selectedBooking.id ? { ...b, status: "cancelled" } : b
+      ));
+      toast({
+        title: "Booking Cancelled",
+        description: `${selectedBooking.customerName}'s booking has been cancelled.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedBooking(undefined);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cancel booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -250,6 +292,24 @@ const BookingManagementPage = () => {
           </Card>
         ))}
       </div>
+
+      <BookingFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        booking={selectedBooking}
+        mode={formMode}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Cancel Booking"
+        description="Are you sure you want to cancel the booking for"
+        itemName={selectedBooking?.customerName}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };
