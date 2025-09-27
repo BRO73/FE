@@ -6,13 +6,18 @@ import {
   TrendingUp,
   DollarSign,
   Clock,
-  Star
+  Star,
+  MessageSquare,
+  Percent
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import MetricCard from "@/components/ui/MetricCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
+
   // Mock data for demonstration
   const metrics = [
     {
@@ -21,6 +26,7 @@ const DashboardPage = () => {
       change: "+2 this month",
       changeType: "positive" as const,
       icon: Table,
+      link: "/admin/tables",
     },
     {
       title: "Active Staff",
@@ -28,6 +34,7 @@ const DashboardPage = () => {
       change: "2 on leave",
       changeType: "neutral" as const,
       icon: Users,
+      link: "/admin/staff",
     },
     {
       title: "Menu Items",
@@ -35,6 +42,7 @@ const DashboardPage = () => {
       change: "+8 new dishes",
       changeType: "positive" as const,
       icon: ChefHat,
+      link: "/admin/menu",
     },
     {
       title: "Today's Bookings",
@@ -42,6 +50,7 @@ const DashboardPage = () => {
       change: "+15% vs yesterday",
       changeType: "positive" as const,
       icon: Calendar,
+      link: "/admin/bookings",
     },
     {
       title: "Revenue Today",
@@ -49,6 +58,7 @@ const DashboardPage = () => {
       change: "+23% vs yesterday",
       changeType: "positive" as const,
       icon: DollarSign,
+      link: "/admin/transactions",
     },
     {
       title: "Avg Service Time",
@@ -63,6 +73,7 @@ const DashboardPage = () => {
       change: "+0.2 this week",
       changeType: "positive" as const,
       icon: Star,
+      link: "/admin/feedback",
     },
     {
       title: "Growth Rate",
@@ -70,15 +81,16 @@ const DashboardPage = () => {
       change: "vs last month",
       changeType: "positive" as const,
       icon: TrendingUp,
+      link: "/admin/reports",
     },
   ];
 
   const recentActivity = [
-    { action: "New booking", details: "Table 5 - John Doe", time: "2 min ago" },
-    { action: "Staff check-in", details: "Maria Garcia", time: "5 min ago" },
-    { action: "Menu item updated", details: "Grilled Salmon", time: "12 min ago" },
-    { action: "Payment completed", details: "Table 3 - $156.50", time: "18 min ago" },
-    { action: "New feedback", details: "5 stars - Great service!", time: "25 min ago" },
+    { action: "New booking", details: "Table 5 - John Doe", time: "2 min ago", link: "/admin/bookings" },
+    { action: "Staff check-in", details: "Maria Garcia", time: "5 min ago", link: "/admin/staff" },
+    { action: "Menu item updated", details: "Grilled Salmon", time: "12 min ago", link: "/admin/menu" },
+    { action: "Payment completed", details: "Table 3 - $156.50", time: "18 min ago", link: "/admin/transactions" },
+    { action: "New feedback", details: "5 stars - Great service!", time: "25 min ago", link: "/admin/feedback" },
   ];
 
   return (
@@ -91,24 +103,43 @@ const DashboardPage = () => {
             Welcome back! Here's what's happening with your restaurant today.
           </p>
         </div>
-        <Button className="btn-primary">
-          <TrendingUp className="w-4 h-4 mr-2" />
-          View Full Reports
+        <Button className="btn-primary" asChild>
+          <Link to="/admin/reports">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            View Full Reports
+          </Link>
         </Button>
       </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric, index) => (
-          <MetricCard
-            key={index}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            changeType={metric.changeType}
-            icon={metric.icon}
-          />
-        ))}
+        {metrics.map((metric, index) => {
+          if (metric.link) {
+            return (
+              <Link key={index} to={metric.link} className="block group">
+                <MetricCard
+                  title={metric.title}
+                  value={metric.value}
+                  change={metric.change}
+                  changeType={metric.changeType}
+                  icon={metric.icon}
+                  className="transition-all duration-200 group-hover:scale-105 group-hover:shadow-lg cursor-pointer"
+                />
+              </Link>
+            );
+          }
+          
+          return (
+            <MetricCard
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              change={metric.change}
+              changeType={metric.changeType}
+              icon={metric.icon}
+            />
+          );
+        })}
       </div>
 
       {/* Recent Activity & Quick Actions */}
@@ -117,17 +148,23 @@ const DashboardPage = () => {
         <Card className="dashboard-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/admin/reports">View All</Link>
+            </Button>
           </div>
           <div className="space-y-4">
             {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
+              <Link 
+                key={index} 
+                to={activity.link}
+                className="flex items-center justify-between py-2 rounded-md hover:bg-muted/50 px-2 -mx-2 transition-colors"
+              >
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">{activity.action}</p>
                   <p className="text-xs text-muted-foreground">{activity.details}</p>
                 </div>
                 <span className="text-xs text-muted-foreground">{activity.time}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </Card>
@@ -136,21 +173,57 @@ const DashboardPage = () => {
         <Card className="dashboard-card">
           <h3 className="text-lg font-semibold text-foreground mb-6">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="h-20 flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/tables')}
+            >
               <Table className="w-6 h-6" />
-              <span className="text-sm">Add Table</span>
+              <span className="text-sm">Manage Tables</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/staff')}
+            >
               <Users className="w-6 h-6" />
-              <span className="text-sm">Add Staff</span>
+              <span className="text-sm">Manage Staff</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/menu')}
+            >
               <ChefHat className="w-6 h-6" />
-              <span className="text-sm">Add Menu Item</span>
+              <span className="text-sm">Manage Menu</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/bookings')}
+            >
               <Calendar className="w-6 h-6" />
-              <span className="text-sm">New Booking</span>
+              <span className="text-sm">Manage Bookings</span>
+            </Button>
+          </div>
+          
+          {/* Additional Quick Actions Row */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/promotions')}
+            >
+              <Percent className="w-6 h-6" />
+              <span className="text-sm">Promotions</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col space-y-2"
+              onClick={() => navigate('/admin/feedback')}
+            >
+              <MessageSquare className="w-6 h-6" />
+              <span className="text-sm">Feedback</span>
             </Button>
           </div>
         </Card>
