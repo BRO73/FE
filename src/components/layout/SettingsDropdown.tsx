@@ -1,4 +1,4 @@
-import { Settings, Palette, Globe, Shield, Bell, HelpCircle } from "lucide-react";
+import { Settings, Palette, Globe, Shield, Bell, HelpCircle, Sun, Moon, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,10 +7,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { useTheme } from "../theme-provider";
 
 const SettingsDropdown = () => {
+  const { theme, setTheme } = useTheme();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -22,10 +28,29 @@ const SettingsDropdown = () => {
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem>
-          <Palette className="w-4 h-4 mr-2" />
-          <span>Appearance</span>
-        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Palette className="w-4 h-4 mr-2" />
+            <span>Theme</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <Sun className="w-4 h-4 mr-2" />
+              <span>Light</span>
+              {theme === "light" && <div className="ml-auto w-2 h-2 bg-primary rounded-full" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon className="w-4 h-4 mr-2" />
+              <span>Dark</span>
+              {theme === "dark" && <div className="ml-auto w-2 h-2 bg-primary rounded-full" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Monitor className="w-4 h-4 mr-2" />
+              <span>System</span>
+              {theme === "system" && <div className="ml-auto w-2 h-2 bg-primary rounded-full" />}
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         
         <DropdownMenuItem>
           <div className="flex items-center justify-between w-full">
