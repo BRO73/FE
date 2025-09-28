@@ -1,7 +1,9 @@
-import { Menu, Search, Bell, Settings, User } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import NotificationDropdown from "./NotificationDropdown";
+import SettingsDropdown from "./SettingsDropdown";
+import UserProfileDropdown from "./UserProfileDropdown";
 
 interface TopbarProps {
   onToggleSidebar: () => void;
@@ -52,23 +54,13 @@ const Topbar = ({ onToggleSidebar, sidebarCollapsed }: TopbarProps) => {
           </Button>
           
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"></span>
-          </Button>
+          <NotificationDropdown />
           
           {/* Settings */}
-          <Button variant="ghost" size="sm">
-            <Settings className="w-5 h-5" />
-          </Button>
+          <SettingsDropdown />
           
           {/* Profile */}
-          <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="hidden sm:block text-sm font-medium">Admin</span>
-          </Button>
+          <UserProfileDropdown />
         </div>
       </div>
     </header>
