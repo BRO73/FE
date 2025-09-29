@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { Plus, Edit, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,14 @@ import { useToast } from "@/hooks/use-toast";
 import MenuItemFormModal from "@/components/forms/MenuItemFormModal";
 import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
-interface MenuItem {
-  id: number;
-  name: string;
-  category: "appetizer" | "main" | "dessert" | "beverage" | "special";
-  price: number;
-  description: string;
-  status: "available" | "unavailable" | "seasonal";
-  prepTime: number; // in minutes
-}
+import {
+  getAllMenuItems,
+  createMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
+} from "@/services/menuItemService";
+import { MenuItemFormData,MenuItemResponse } from "@/types/type";
+
 
 const MenuManagementPage = () => {
   const { toast } = useToast();
@@ -25,40 +24,34 @@ const MenuManagementPage = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
-  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | undefined>();
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItemResponse | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Mock data
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { id: 1, name: "Caesar Salad", category: "appetizer", price: 12.99, description: "Fresh romaine lettuce with parmesan cheese", status: "available", prepTime: 10 },
-    { id: 2, name: "Grilled Salmon", category: "main", price: 28.99, description: "Atlantic salmon with lemon butter sauce", status: "available", prepTime: 25 },
-    { id: 3, name: "Chocolate Lava Cake", category: "dessert", price: 8.99, description: "Warm chocolate cake with vanilla ice cream", status: "available", prepTime: 15 },
-    { id: 4, name: "Craft Beer", category: "beverage", price: 6.99, description: "Local brewery selection", status: "available", prepTime: 2 },
-    { id: 5, name: "Truffle Pasta", category: "special", price: 35.99, description: "Handmade pasta with black truffle", status: "seasonal", prepTime: 30 },
-    { id: 6, name: "Fish & Chips", category: "main", price: 18.99, description: "Beer battered cod with fries", status: "unavailable", prepTime: 20 },
-    { id: 7, name: "Bruschetta", category: "appetizer", price: 9.99, description: "Toasted bread with tomato and basil", status: "available", prepTime: 8 },
-    { id: 8, name: "Tiramisu", category: "dessert", price: 9.99, description: "Classic Italian dessert", status: "available", prepTime: 5 },
-  ]);
+  const [menuItems, setMenuItems] = useState<MenuItemResponse[]>([]);
 
   const categories = ["all", "appetizer", "main", "dessert", "beverage", "special"];
 
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+  // Fetch data từ API khi component mount
+  useEffect(() => {
+    getAllMenuItems()
+        .then((data) => setMenuItems(data))
+        .catch(() =>
+            toast({
+              title: "Error",
+              description: "Failed to load menu items",
+              variant: "destructive",
+            })
+        );
+  }, []);
+
+  const filteredItems = menuItems.filter((item) => {
+    const matchesSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || item.categoryName === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const getStatusColor = (status: MenuItem["status"]) => {
-    switch (status) {
-      case "available": return "bg-success text-success-foreground";
-      case "unavailable": return "bg-destructive text-destructive-foreground";
-      case "seasonal": return "bg-warning text-warning-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const getCategoryColor = (category: MenuItem["category"]) => {
+  const getCategoryColor = (category: MenuItemResponse["categoryName"]) => {
     switch (category) {
       case "appetizer": return "bg-emerald-500 text-white";
       case "main": return "bg-blue-500 text-white";
@@ -68,6 +61,19 @@ const MenuManagementPage = () => {
       default: return "bg-muted text-muted-foreground";
     }
   };
+  const getStatusColor = (status: MenuItemResponse["status"]) => {
+    switch (status.toLowerCase()) {
+      case "available":
+        return "bg-success text-success-foreground";
+      case "unavailable":
+        return "bg-destructive text-destructive-foreground";
+      case "seasonal":
+        return "bg-warning text-warning-foreground";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
 
   const handleAddMenuItem = () => {
     setFormMode("add");
@@ -75,35 +81,49 @@ const MenuManagementPage = () => {
     setIsFormModalOpen(true);
   };
 
-  const handleEditMenuItem = (item: MenuItem) => {
+  const handleEditMenuItem = (item: MenuItemResponse) => {
     setFormMode("edit");
     setSelectedMenuItem(item);
     setIsFormModalOpen(true);
   };
 
-  const handleDeleteMenuItem = (item: MenuItem) => {
+  const handleDeleteMenuItemClick = (item: MenuItemResponse) => {
+    setSelectedMenuItem(item);
+    setIsDeleteDialogOpen(true);
+  };
+  const handleDeleteMenuItem = (item: MenuItemResponse) => {
     setSelectedMenuItem(item);
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = (data: any) => {
-    if (formMode === "add") {
-      const newMenuItem: MenuItem = {
-        id: Math.max(...menuItems.map(m => m.id)) + 1,
-        ...data,
-      };
-      setMenuItems([...menuItems, newMenuItem]);
-    } else if (formMode === "edit" && selectedMenuItem) {
-      setMenuItems(menuItems.map(m => 
-        m.id === selectedMenuItem.id ? { ...selectedMenuItem, ...data } : m
-      ));
+
+  // ✅ Gọi API khi submit form
+  const handleFormSubmit = async (data: Partial<MenuItemFormData>) => {
+    setIsSubmitting(true);
+    try {
+      if (formMode === "add") {
+        const newItem = await createMenuItem(data as Omit<MenuItemFormData, "id">);
+        setMenuItems([...menuItems, newItem]);
+      } else if (formMode === "edit" && selectedMenuItem) {
+        const updatedItem = await updateMenuItem(selectedMenuItem.id, data as MenuItemFormData);
+        setMenuItems(menuItems.map((m) => (m.id === selectedMenuItem.id ? updatedItem : m)));
+      }
+      setIsFormModalOpen(false);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save menu item",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsFormModalOpen(false);
   };
 
+  // ✅ Gọi API khi delete
   const handleDeleteConfirm = async () => {
     if (!selectedMenuItem) return;
-    
+
     setIsSubmitting(true);
     try {
       setMenuItems(menuItems.filter(m => m.id !== selectedMenuItem.id));
@@ -195,12 +215,13 @@ const MenuManagementPage = () => {
                     </div>
                   </td>
                   <td>
-                    <Badge className={getCategoryColor(item.category)}>
-                      {item.category}
+                    <Badge className={getCategoryColor(item.categoryName )}>
+                      {item.categoryName}
                     </Badge>
+
                   </td>
                   <td className="font-medium text-foreground">${item.price}</td>
-                  <td className="text-muted-foreground">{item.prepTime} min</td>
+
                   <td>
                     <Badge className={getStatusColor(item.status)}>
                       {item.status}
@@ -216,12 +237,13 @@ const MenuManagementPage = () => {
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteMenuItem(item)}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteMenuItem(item)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+
                     </div>
                   </td>
                 </tr>
@@ -241,8 +263,8 @@ const MenuManagementPage = () => {
                 <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
               </div>
               <div className="flex flex-col gap-2 ml-4">
-                <Badge className={getCategoryColor(item.category)}>
-                  {item.category}
+                <Badge className={getCategoryColor(item.categoryName)}>
+                  {item.categoryName}
                 </Badge>
                 <Badge className={getStatusColor(item.status)}>
                   {item.status}
@@ -252,7 +274,6 @@ const MenuManagementPage = () => {
             <div className="flex items-center justify-between text-sm">
               <div className="space-y-1 text-muted-foreground">
                 <p><span className="font-medium">Price:</span> ${item.price}</p>
-                <p><span className="font-medium">Prep Time:</span> {item.prepTime} min</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
@@ -265,13 +286,14 @@ const MenuManagementPage = () => {
                 Edit
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteMenuItem(item)}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteMenuItem(item)}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Delete
               </Button>
+
             </div>
           </Card>
         ))}
@@ -286,14 +308,15 @@ const MenuManagementPage = () => {
       />
 
       <DeleteConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Remove Menu Item"
-        description="Are you sure you want to remove"
-        itemName={selectedMenuItem?.name}
-        isLoading={isSubmitting}
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleDeleteConfirm}
+          title="Remove Menu Item"
+          description="Are you sure you want to remove"
+          itemName={selectedMenuItem?.name}
+          isLoading={isSubmitting}
       />
+
     </div>
   );
 };

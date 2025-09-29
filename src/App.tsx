@@ -14,8 +14,10 @@ import FeedbackPage from "./pages/FeedbackPage";
 import PromotionPage from "./pages/PromotionPage";
 import ReportsPage from "./pages/ReportsPage";
 import TransactionsPage from "./pages/TransactionsPage";
+
 import NotFound from "./pages/NotFound";
 import MenuPage from "./pages/MenuPage";
+
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,7 @@ const App = () => (
           <Routes>
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
+
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="tables" element={<TableManagementPage />} />
@@ -39,6 +42,8 @@ const App = () => (
               <Route path="promotions" element={<PromotionPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
+
+
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
