@@ -1,6 +1,8 @@
 import React, { FC, useEffect, useState, useMemo } from "react";
 import { menuApi } from "@/apis/menu.api";
 import FoodDetail from "./FoodDetail";
+import { useNavigate } from "react-router-dom"; // Nếu dùng React Router
+// Hoặc nếu dùng Next.js: import { useRouter } from "next/navigation";
 
 interface Category {
   name: string;
@@ -21,6 +23,24 @@ interface MenuProps {
   title?: string;
 }
 
+// Mock data cho giỏ hàng - tạm thời
+const mockCartItems = [
+  {
+    id: 1,
+    name: "Pâté Gan Gà",
+    price: 185000,
+    quantity: 2,
+    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
+  },
+  {
+    id: 3,
+    name: "Salad Caprese", 
+    price: 165000,
+    quantity: 1,
+    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
+  }
+];
+
 const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -29,6 +49,13 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [activeItem, setActiveItem] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  
+  // Mock state cho số lượng giỏ hàng
+  const [cartItemCount, setCartItemCount] = useState<number>(3); // Tổng số lượng items
+  
+  // Sử dụng cho điều hướng
+  const navigate = useNavigate(); // React Router
+  // const router = useRouter(); // Next.js
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -45,6 +72,17 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
     fetchMenuItems();
   }, []);
+
+  // Hàm xử lý điều hướng đến trang giỏ hàng
+  const handleCartNavigation = () => {
+    // React Router
+    navigate("/cart");
+    
+    // Hoặc Next.js
+    // router.push("/cart");
+    
+    console.log("Điều hướng đến trang giỏ hàng");
+  };
 
   // Lấy danh sách categories duy nhất
   const categories = useMemo(() => {
@@ -145,31 +183,62 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
               </div>
             </div>
 
-            {/* Search - Full width on mobile */}
-            {/* Search - Full width on mobile */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="Tìm món ăn..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm sm:text-base text-gray-900 bg-white"
-              />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5"
-                  fill="none"
-                  stroke="currentColor"
+            {/* Search và Cart Button Container */}
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {/* Search - Full width on mobile */}
+              <div className="relative flex-1 sm:flex-none sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Tìm món ăn..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm sm:text-base text-gray-900 bg-white"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <svg
+                    className="w-4 h-4 sm:w-5 sm:h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Cart Button - Mobile Optimized */}
+              <button
+                onClick={handleCartNavigation}
+                className="relative p-2 sm:p-3 text-gray-600 hover:text-gray-900 transition duration-200 bg-white border border-gray-200 rounded-full hover:shadow-md active:scale-95 touch-manipulation"
+                aria-label="Giỏ hàng"
+              >
+                {/* Cart Icon */}
+                <svg 
+                  className="w-5 h-5 sm:w-6 sm:h-6" 
+                  fill="none" 
+                  stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
-              </div>
+                
+                {/* Cart Counter Badge */}
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full h-5 w-5 min-w-[1.25rem] flex items-center justify-center shadow-sm transform scale-100 transition-transform hover:scale-110">
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>

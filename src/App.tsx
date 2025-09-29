@@ -17,6 +17,7 @@ import TransactionsPage from "./pages/TransactionsPage";
 import NotFound from "./pages/NotFound";
 import MenuPage from "./pages/MenuPage";
 import FoodDetail from "./pages/FoodDetail";
+import CartItem from "./pages/CartItem";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +30,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/menu" element={<MenuPage />} />
-            <Route path="/cart" element={<MenuPage />} />
+            <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
