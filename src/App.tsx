@@ -14,9 +14,13 @@ import FeedbackPage from "./pages/FeedbackPage";
 import PromotionPage from "./pages/PromotionPage";
 import ReportsPage from "./pages/ReportsPage";
 import TransactionsPage from "./pages/TransactionsPage";
+
 import NotFound from "@/pages/NotFound.tsx";
 import Login from "@/pages/Login.tsx";
 import Register from "@/pages/Register.tsx";
+import MenuPage from "./pages/MenuPage";
+
+
 
 const queryClient = new QueryClient();
 
@@ -28,9 +32,12 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/" element={<Navigate to="/admin" replace />} />
+
 
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
