@@ -11,13 +11,15 @@ export const fetchAllMenuItems = () =>
 export const fetchMenuItemById = (id: number) =>
     axios.get<MenuItemResponse>(`${API_URL}/${id}`);
 
-// Tạo mới
 export const postMenuItem = (payload: any) =>
-    axios.post<MenuItemResponse>(API_URL, payload);
+    axios.post<MenuItemResponse>(API_URL, payload, {
+        headers: { "Content-Type": "application/json" } // đảm bảo backend nhận JSON
+    });
 
-// Cập nhật
 export const putMenuItem = (id: number, payload: any) =>
-    axios.put<MenuItemResponse>(`${API_URL}/${id}`, payload);
+    axios.put<MenuItemResponse>(`${API_URL}/${id}`, payload, {
+        headers: { "Content-Type": "application/json" }
+    });
 
 // Xóa
 export const deleteMenuItemApi = (id: number) =>

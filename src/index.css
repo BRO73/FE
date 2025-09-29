@@ -8,6 +8,7 @@
   :root {
     /* Blue Monochrome Color Palette */
     --background: 0 0% 100%;
+    --background-login: 0 0% 96%;
     --foreground: 217 19% 27%;
     
     --card: 0 0% 100%;
@@ -21,6 +22,7 @@
     --primary-foreground: 0 0% 100%;
     --primary-light: 217 91% 95%;
     --primary-dark: 217 91% 45%;
+    --primary-hover: 210 90% 50%;
     
     /* Secondary Grays with Blue Undertones */
     --secondary: 217 12% 97%;
@@ -44,6 +46,8 @@
     --border: 217 12% 92%;
     --input: 217 12% 97%;
     --ring: 217 91% 60%;
+    --input-border: 0 0% 88%;
+    --input-focus: 210 90% 55%;
     
     --radius: 0.75rem;
     
@@ -60,7 +64,14 @@
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
     --gradient-subtle: linear-gradient(135deg, hsl(var(--background)), hsl(var(--secondary)));
-    
+
+    --text-primary: 0 0% 20%;
+    --text-secondary: 0 0% 50%;
+    --text-muted: 0 0% 65%;
+
+    /* Vietnamese App Specific Colors */
+    --vietnam-red: 0 75% 55%;
+    --vietnam-gold: 45 95% 55%;
     /* Transitions */
     --transition-base: all 0.2s ease-in-out;
     --transition-colors: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -113,7 +124,82 @@
   }
 }
 
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
 @layer components {
+  .floating-input-group {
+    @apply relative mt-5;
+  }
+
+  .floating-input {
+    @apply w-full px-4 py-4 text-base bg-background border border-input-border rounded-xl
+    focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+    transition-all duration-200 placeholder-transparent
+    min-h-[56px];
+  }
+
+  .floating-label {
+    @apply absolute left-3 -top-2 bg-background px-2 text-sm text-muted-foreground
+    transition-all duration-200 pointer-events-none;
+  }
+
+  .floating-input:focus ~ .floating-label,
+  .floating-input:not(:placeholder-shown) ~ .floating-label {
+    @apply text-primary text-xs;
+  }
+
+  /* Loading spinner animation */
+  @keyframes spin-loading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loading-spinner {
+    @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full;
+    animation: spin-loading 1s linear infinite;
+  }
+
+  /* Button variants - Mobile first */
+  .btn-auth {
+    @apply w-full py-4 px-6 bg-primary hover:bg-primary-hover text-primary-foreground
+    rounded-xl font-medium transition-all duration-200
+    focus:outline-none focus:ring-2 focus:ring-primary/30
+    disabled:opacity-70 disabled:cursor-not-allowed
+    flex items-center justify-center gap-2
+    min-h-[56px] text-base;
+  }
+
+  .btn-link {
+    @apply text-primary hover:text-primary-hover transition-colors duration-200
+    text-sm font-medium;
+  }
+
+  /* Card styling - Mobile first */
+  .auth-card {
+    @apply bg-card border border-border rounded-2xl shadow-lg
+    p-4 mx-3 w-full
+    sm:p-6 sm:mx-4 sm:max-w-md;
+  }
+
+  /* Support footer styling - Mobile first */
+  .support-footer {
+    @apply flex items-center justify-between text-xs text-muted-foreground
+    mt-6 px-3
+    sm:text-sm sm:mt-8 sm:px-4;
+  }
+
+  /* Vietnam flag emoji styling */
+  .flag-vi {
+    @apply inline-flex items-center gap-1 text-sm font-medium;
+  }
+
   /* Dashboard Layout */
   .dashboard-container {
     @apply min-h-screen bg-background;
