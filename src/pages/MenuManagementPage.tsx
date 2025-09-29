@@ -14,8 +14,13 @@ import {
   updateMenuItem,
   deleteMenuItem,
 } from "@/services/menuItemService";
-import { MenuItemFormData,MenuItemResponse } from "@/types/type";
 
+import {
+  fetchCategories
+} from "@/services/categoryService.ts"
+import {CategoryResponse} from "@/types/type";
+import { MenuItemFormData,MenuItemResponse } from "@/types/type";
+import {deleteMenuItemApi, postMenuItem, putMenuItem} from "@/api/menuItemApi.ts";
 
 const MenuManagementPage = () => {
   const { toast } = useToast();
@@ -27,13 +32,14 @@ const MenuManagementPage = () => {
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItemResponse | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItemResponse[]>([]);
+  const [categories, setCategories] = useState<string[]>(["all"]); // default "all"
 
-  const categories = ["all", "appetizer", "main", "dessert", "beverage", "special"];
-
-  // Fetch data từ API khi component mount
   useEffect(() => {
     getAllMenuItems()
-        .then((data) => setMenuItems(data))
+        .then((data) => {
+          console.log("Fetched menu items:", data); // full backend data
+          setMenuItems(data); // lưu nguyên categoryName từ backend
+        })
         .catch(() =>
             toast({
               title: "Error",
@@ -43,16 +49,43 @@ const MenuManagementPage = () => {
         );
   }, []);
 
+
+
+  // Fetch categories từ backend
+  useEffect(() => {
+    fetchCategories()
+        .then((res) => {
+          const categoryNames = res.data.map((cat: CategoryResponse) => cat.name);
+          setCategories(["all", ...categoryNames]);
+        })
+        .catch(() =>
+            toast({
+              title: "Error",
+              description: "Failed to load categories",
+              variant: "destructive",
+            })
+        );
+  }, []);
+
+
+
   const filteredItems = menuItems.filter((item) => {
     const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || item.categoryName === selectedCategory;
+        (item.categoryName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.description ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+        selectedCategory === "all" ||
+        (item.categoryName ?? "").toLowerCase() === selectedCategory.toLowerCase();
+
     return matchesSearch && matchesCategory;
   });
 
-  const getCategoryColor = (category: MenuItemResponse["categoryName"]) => {
-    switch (category) {
+
+  const getCategoryColor   = (category?: MenuItemResponse["categoryName"]) => {
+    if (!category) return "bg-muted text-muted-foreground"; // fallback
+    switch (category.toLowerCase()) {
       case "appetizer": return "bg-emerald-500 text-white";
       case "main": return "bg-blue-500 text-white";
       case "dessert": return "bg-pink-500 text-white";
@@ -61,6 +94,7 @@ const MenuManagementPage = () => {
       default: return "bg-muted text-muted-foreground";
     }
   };
+
   const getStatusColor = (status: MenuItemResponse["status"]) => {
     switch (status.toLowerCase()) {
       case "available":
@@ -97,19 +131,38 @@ const MenuManagementPage = () => {
   };
 
 
-  // ✅ Gọi API khi submit form
   const handleFormSubmit = async (data: Partial<MenuItemFormData>) => {
     setIsSubmitting(true);
+
+    const payload = {
+      name: data.name,
+      categoryName: data.categoryName,
+      description: data.description,
+      price: Number(data.price),
+      status: data.status,
+      imageUrl: data.imageUrl || null
+    };
+
     try {
       if (formMode === "add") {
-        const newItem = await createMenuItem(data as Omit<MenuItemFormData, "id">);
-        setMenuItems([...menuItems, newItem]);
+        const response = await postMenuItem(payload);
+        const newItem = response.data;
+        console.log("Backend response:", response.data);
+        // ✅ đảm bảo luôn có categoryName
+        const normalizedItem = { ...newItem, categoryName: newItem.categoryName ?? "Unknown" };
+        setMenuItems([...menuItems, normalizedItem]);
+        console.log("Updated menuItems state:", [...menuItems, response.data]);
       } else if (formMode === "edit" && selectedMenuItem) {
-        const updatedItem = await updateMenuItem(selectedMenuItem.id, data as MenuItemFormData);
-        setMenuItems(menuItems.map((m) => (m.id === selectedMenuItem.id ? updatedItem : m)));
+        const response = await putMenuItem(selectedMenuItem.id, payload);
+        console.log("Backend response:", response.data);
+        const updatedItem = response.data;
+        const normalizedItem = { ...updatedItem, categoryName: updatedItem.categoryName ?? "Unknown" };
+        setMenuItems(menuItems.map((m) => (m.id === selectedMenuItem.id ? normalizedItem : m)));
+        console.log("Updated menuItems state:", [...menuItems, response.data]);
       }
+
       setIsFormModalOpen(false);
-    } catch {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to save menu item",
@@ -120,17 +173,24 @@ const MenuManagementPage = () => {
     }
   };
 
-  // ✅ Gọi API khi delete
+
+// ✅ Gọi API khi delete
   const handleDeleteConfirm = async () => {
     if (!selectedMenuItem) return;
 
     setIsSubmitting(true);
     try {
+      // ✅ Gọi API xóa menu item
+      await deleteMenuItemApi(selectedMenuItem.id);
+
+      // ✅ Update state frontend
       setMenuItems(menuItems.filter(m => m.id !== selectedMenuItem.id));
+
       toast({
         title: "Menu Item Removed",
         description: `${selectedMenuItem.name} has been removed from the menu.`,
       });
+
       setIsDeleteDialogOpen(false);
       setSelectedMenuItem(undefined);
     } catch (error) {
@@ -143,6 +203,7 @@ const MenuManagementPage = () => {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="space-y-8">
@@ -215,9 +276,10 @@ const MenuManagementPage = () => {
                     </div>
                   </td>
                   <td>
-                    <Badge className={getCategoryColor(item.categoryName )}>
-                      {item.categoryName}
+                    <Badge className={getCategoryColor(item.categoryName ?? "unknown")}>
+                      {item.categoryName ?? "Unknown"}
                     </Badge>
+
 
                   </td>
                   <td className="font-medium text-foreground">${item.price}</td>

@@ -29,18 +29,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {fetchCategories} from "@/services/categoryService.ts";
+import {CategoryResponse, MenuItemFormData} from "@/types/type.ts";
 
-// ✅ Form schema (không có prepTime)
-const menuItemSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
-  category: z.enum(["appetizer", "main", "dessert", "beverage", "special"]),
-  price: z.coerce.number().min(0.01, "Price must be greater than 0").max(999.99, "Price too high"),
-  description: z.string().min(10, "Description must be at least 10 characters").max(500, "Description too long"),
-  status: z.enum(["available", "unavailable", "seasonal"]),
-});
 
-// ✅ Type form data
-export type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 // ✅ Props cho modal
 interface MenuItemFormModalProps {
@@ -52,6 +44,7 @@ interface MenuItemFormModalProps {
 }
 
 const MenuItemFormModal = ({
+
                              isOpen,
                              onClose,
                              onSubmit,
@@ -60,25 +53,44 @@ const MenuItemFormModal = ({
                            }: MenuItemFormModalProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+    const [categories, setCategories] = useState<string[]>([]);
 
   const form = useForm<MenuItemFormData>({
-    resolver: zodResolver(menuItemSchema),
     defaultValues: {
       name: "",
-      category: "main",
+      categoryName: "All",
       price: 0,
       description: "",
       status: "available",
     },
   });
 
-  useEffect(() => {
+    useEffect(() => {
+        fetchCategories()
+            .then((res) => {
+                const categoryNames = res.data.map((cat: CategoryResponse) => cat.name);
+                setCategories(["all", ...categoryNames]);
+
+                // ✅ reset categoryName về giá trị hợp lệ
+                form.setValue("categoryName", categoryNames[0] || "all");
+            })
+            .catch(() =>
+                toast({
+                    title: "Error",
+                    description: "Failed to load categories",
+                    variant: "destructive",
+                })
+            );
+    }, []);
+
+
+    useEffect(() => {
     if (menuItem && mode === "edit") {
       form.reset(menuItem); // ✅ load lại form data từ props
     } else if (mode === "add") {
       form.reset({
         name: "",
-        category: "main",
+        categoryName: categories[0],
         price: 0,
         description: "",
         status: "available",
@@ -90,6 +102,7 @@ const MenuItemFormModal = ({
     setIsSubmitting(true);
     try {
       await onSubmit(data);
+
       toast({
         title: mode === "add" ? "Menu Item Added" : "Menu Item Updated",
         description: `${data.name} has been ${mode === "add" ? "added to" : "updated in"} the menu.`,
@@ -144,22 +157,33 @@ const MenuItemFormModal = ({
               {/* Category */}
               <FormField
                   control={form.control}
-                  name="category"
+                  name="categoryName"
                   render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
                         <FormControl>
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="appetizer">Appetizer</SelectItem>
-                              <SelectItem value="main">Main Course</SelectItem>
-                              <SelectItem value="dessert">Dessert</SelectItem>
-                              <SelectItem value="beverage">Beverage</SelectItem>
-                              <SelectItem value="special">Special</SelectItem>
-                            </SelectContent>
+                              <Select onValueChange={field.onChange} value={field.value || "all"}>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {categories.map((category) => (
+                                          <SelectItem key={category} value={category}>
+                                              {category.charAt(0).toUpperCase() + category.slice(1)}
+                                          </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
+
+                              <SelectContent>
+                                  {categories.map((category) => (
+                                      <SelectItem key={category} value={category}>
+                                          {category.charAt(0).toUpperCase() + category.slice(1)} {/* Optional: capitalize */}
+                                      </SelectItem>
+                                  ))}
+                              </SelectContent>
+
                           </Select>
                         </FormControl>
                         <FormMessage />
