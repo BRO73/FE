@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState, useMemo } from "react";
-import axios from "axios";
 import { menuApi } from "@/apis/menu.api";
+import FoodDetail from "./FoodDetail";
 
 interface Category {
   name: string;
@@ -28,6 +28,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("Tất cả");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [activeItem, setActiveItem] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -47,23 +48,28 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
   // Lấy danh sách categories duy nhất
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(menuItems.map(item => item.category.name))];
+    const uniqueCategories = [
+      ...new Set(menuItems.map((item) => item.category.name)),
+    ];
     return ["Tất cả", ...uniqueCategories];
   }, [menuItems]);
 
   // Lọc menu items theo category và search term
   const filteredItems = useMemo(() => {
-    return menuItems.filter(item => {
-      const matchesCategory = selectedCategory === "Tất cả" || item.category.name === selectedCategory;
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           item.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return menuItems.filter((item) => {
+      const matchesCategory =
+        selectedCategory === "Tất cả" ||
+        item.category.name === selectedCategory;
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [menuItems, selectedCategory, searchTerm]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 safe-area-padding">
         <div className="text-center">
           <div className="animate-pulse flex flex-col items-center">
             <div className="h-16 w-16 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full mb-4"></div>
@@ -77,14 +83,16 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md mx-4">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 safe-area-padding px-4">
+        <div className="text-center max-w-md w-full">
           <div className="text-6xl mb-4">🍽️</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Không thể tải menu</h3>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            Không thể tải menu
+          </h3>
           <p className="text-gray-600 mb-6">{error}</p>
-          <button 
+          <button
             onClick={() => window.location.reload()}
-            className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300"
+            className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300 w-full max-w-xs mx-auto"
           >
             Thử lại
           </button>
@@ -95,55 +103,71 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header với background hình ảnh */}
+      {/* Header với background hình ảnh - Mobile Optimized */}
       <div className="relative bg-black text-white">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center opacity-40"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')"
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=2070&q=80')",
           }}
         ></div>
-        <div className="relative max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4">{title}</h1>
-          <p className="text-xl max-w-2xl mx-auto opacity-90">
+        <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-20 md:py-24 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-bold mb-3 sm:mb-4 px-2">
+            {title}
+          </h1>
+          <p className="text-base sm:text-lg md:text-xl max-w-2xl mx-auto opacity-90 px-4">
             Trải nghiệm ẩm thực tinh tế với những nguyên liệu cao cấp nhất
           </p>
         </div>
       </div>
 
-      {/* Navigation và Search */}
+      {/* Navigation và Search - Mobile Optimized */}
       <div className="sticky top-0 bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Category Navigation */}
-            <div className="flex overflow-x-auto pb-2 md:pb-0 space-x-1 scrollbar-hide">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-full whitespace-nowrap transition duration-300 ${
-                    selectedCategory === category
-                      ? "bg-black text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between items-center">
+            {/* Category Navigation - Horizontal Scroll for Mobile */}
+            <div className="w-full sm:w-auto">
+              <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2 -mx-1 px-1">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-3 sm:px-4 py-2 rounded-full whitespace-nowrap text-sm transition duration-300 flex-shrink-0 ${
+                      selectedCategory === category
+                        ? "bg-black text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Search */}
-            <div className="relative w-full md:w-auto">
+            {/* Search - Full width on mobile */}
+            {/* Search - Full width on mobile */}
+            <div className="relative w-full sm:w-64">
               <input
                 type="text"
                 placeholder="Tìm món ăn..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm sm:text-base text-gray-900 bg-white"
               />
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
             </div>
@@ -151,36 +175,45 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
         </div>
       </div>
 
-      {/* Menu Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Menu Content - Mobile Optimized */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8 md:py-12">
         {filteredItems.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-2xl font-semibold text-gray-700 mb-2">Không tìm thấy món ăn</h3>
-            <p className="text-gray-500">Hãy thử tìm kiếm với từ khóa khác hoặc chọn danh mục khác</p>
+          <div className="text-center py-12 sm:py-16 px-4">
+            <div className="text-5xl sm:text-6xl mb-4">🔍</div>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-2">
+              Không tìm thấy món ăn
+            </h3>
+            <p className="text-gray-500 text-sm sm:text-base">
+              Hãy thử tìm kiếm với từ khóa khác hoặc chọn danh mục khác
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {filteredItems.map((item, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+            {filteredItems.map((item) => (
               <div
                 key={item.id}
-                className={`bg-white rounded-2xl overflow-hidden border border-gray-100 transition-all duration-500 ${
-                  activeItem === item.id ? 'shadow-2xl scale-105' : 'shadow-lg hover:shadow-xl'
+                className={`bg-white rounded-xl sm:rounded-2xl overflow-hidden border border-gray-100 transition-all duration-300 ${
+                  activeItem === item.id
+                    ? "shadow-lg sm:shadow-2xl scale-[1.02]"
+                    : "shadow-sm sm:shadow-lg hover:shadow-md sm:hover:shadow-xl"
                 }`}
                 onMouseEnter={() => setActiveItem(item.id)}
                 onMouseLeave={() => setActiveItem(null)}
               >
-                <div className="flex flex-col md:flex-row">
-                  {/* Image */}
-                  <div className="md:w-2/5 relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row">
+                  {/* Image - Mobile optimized */}
+                  <div className="sm:w-2/5 relative overflow-hidden">
                     <img
-                      src={item.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"}
+                      src={
+                        item.imageUrl ||
+                        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
+                      }
                       alt={item.name}
-                      className="w-full h-48 md:h-full object-cover transition duration-700 transform hover:scale-110"
+                      className="w-full h-40 sm:h-48 md:h-full object-cover transition duration-500 hover:scale-105"
                     />
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-semibold ${
                           item.status === "Available"
                             ? "bg-green-500 text-white"
                             : "bg-red-500 text-white"
@@ -191,42 +224,53 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                     </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="md:w-3/5 p-6 flex flex-col">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-serif font-semibold text-gray-900">
-                        {item.name}
+                  {/* Content - Mobile optimized */}
+                  <div className="sm:w-3/5 p-4 sm:p-6 flex flex-col">
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                      <h3 className="text-lg sm:text-xl font-serif font-semibold text-gray-900 flex-1 min-w-0">
+                        <span className="truncate">{item.name}</span>
                       </h3>
-                      <span className="text-xl font-bold text-amber-600 ml-4">
+                      <span className="text-lg sm:text-xl font-bold text-amber-600 flex-shrink-0 whitespace-nowrap ml-2">
                         {item.price.toLocaleString()} USD
                       </span>
                     </div>
-                    
-                    <div className="mb-4">
-                      <span className="inline-block bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+
+                    <div className="mb-3 sm:mb-4">
+                      <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm">
                         {item.category.name}
                       </span>
                     </div>
-                    
-                    <p className="text-gray-600 mb-6 flex-grow leading-relaxed">
+
+                    <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6 flex-grow leading-relaxed line-clamp-2 sm:line-clamp-3">
                       {item.description}
                     </p>
 
-                    <div className="flex justify-between items-center mt-auto">
-                      <button 
-                        className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300 font-medium flex items-center"
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3 mt-auto">
+                      <button
+                        className="bg-black text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-gray-800 transition duration-300 font-medium flex items-center justify-center w-full sm:w-auto text-sm sm:text-base"
                         disabled={item.status !== "Available"}
                       >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <svg
+                          className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                          />
                         </svg>
                         Đặt món
                       </button>
-                      
-                      <button className="text-gray-400 hover:text-amber-500 transition duration-300 p-2">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
+
+                      <button
+                        onClick={() => setSelectedItem(item)}
+                        className="bg-gray-100 text-gray-700 px-4 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-gray-200 transition text-sm sm:text-base w-full sm:w-auto text-center"
+                      >
+                        Xem chi tiết
                       </button>
                     </div>
                   </div>
@@ -237,31 +281,85 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Modal Detail - Mobile Optimized */}
+      <FoodDetail item={selectedItem} onClose={() => setSelectedItem(null)} />
+
+      {/* Footer - Mobile Optimized */}
       <div className="bg-gray-50 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cần hỗ trợ thêm?</h3>
-            <div className="flex flex-col sm:flex-row justify-center gap-6 text-gray-600">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Cần hỗ trợ thêm?
+            </h3>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 text-gray-600 text-sm sm:text-base">
               <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                  />
                 </svg>
                 <span>0123-456-789</span>
               </div>
               <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
                 <span>info@restaurant.com</span>
               </div>
             </div>
-            <p className="mt-8 text-gray-500 text-sm">
-              © {new Date().getFullYear()} Nhà hàng của chúng tôi. Mọi quyền được bảo lưu.
+            <p className="mt-6 sm:mt-8 text-gray-500 text-xs sm:text-sm">
+              © {new Date().getFullYear()} Nhà hàng của chúng tôi. Mọi quyền
+              được bảo lưu.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Safe Area CSS */}
+      <style>{`
+        .safe-area-padding {
+          padding-left: env(safe-area-inset-left, 0px);
+          padding-right: env(safe-area-inset-right, 0px);
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        @supports(padding: max(0px)) {
+          .safe-area-padding {
+            padding-left: max(0px, env(safe-area-inset-left, 0px));
+            padding-right: max(0px, env(safe-area-inset-right, 0px));
+            padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+          }
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </div>
   );
 };

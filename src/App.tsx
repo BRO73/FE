@@ -16,6 +16,7 @@ import ReportsPage from "./pages/ReportsPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import NotFound from "./pages/NotFound";
 import MenuPage from "./pages/MenuPage";
+import FoodDetail from "./pages/FoodDetail";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/menu" element={<MenuPage />} />
+            <Route path="/cart" element={<MenuPage />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
