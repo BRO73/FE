@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useCart } from "@/hooks/useCart";
 
 interface Category {
   name: string;
@@ -22,13 +23,22 @@ interface FoodDetailProps {
 
 const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
   const [quantity, setQuantity] = useState(1);
+  const { addToCart } = useCart();
 
   if (!item) return null;
 
   const handleAddToCart = () => {
-    // Xử lý thêm vào giỏ hàng ở đây
-    console.log(`Thêm ${quantity} ${item.name} vào giỏ hàng`);
-    // Có thể thêm logic gọi API hoặc context ở đây
+    // Thêm vào giỏ hàng với số lượng đã chọn
+    addToCart({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      imageUrl: item.imageUrl,
+      description: item.description,
+    }, quantity);
+    
+    // Đóng popup sau khi thêm
+    onClose();
   };
 
   const incrementQuantity = () => {
@@ -39,16 +49,18 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
     setQuantity(prev => (prev > 1 ? prev - 1 : 1));
   };
 
+  const totalPrice = item.price * quantity;
+
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-60 safe-area-padding"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 safe-area-padding"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300"
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header với nút đóng */}
+        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900">Chi tiết món ăn</h2>
           <button
@@ -81,12 +93,6 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
               {item.status === "Available" ? "Có sẵn" : "Hết hàng"}
             </span>
           </div>
-          {/* Badge danh mục */}
-          <div className="absolute top-3 left-3">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-black bg-opacity-70 text-white">
-              {item.category.name}
-            </span>
-          </div>
         </div>
 
         {/* Nội dung */}
@@ -96,13 +102,13 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{item.name}</h1>
             <div className="flex items-center justify-between">
               <span className="text-2xl sm:text-3xl font-bold text-amber-600">
-                {item.price.toLocaleString()} USD
+                {item.price.toLocaleString('vi-VN')} VND
               </span>
             </div>
           </div>
 
           {/* Mô tả */}
-          <div className="mb-6">
+          <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Mô tả</h3>
             <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
               {item.description}
@@ -110,12 +116,9 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
           </div>
 
           {/* Thông tin danh mục */}
-          <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">Danh mục</h3>
             <p className="text-gray-600 text-sm">{item.category.name}</p>
-            {item.category.description && (
-              <p className="text-gray-500 text-xs mt-1">{item.category.description}</p>
-            )}
           </div>
 
           {/* Chọn số lượng - Chỉ hiện khi có sẵn */}
@@ -166,36 +169,21 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
               disabled={item.status !== "Available"}
               className={`px-6 py-3 rounded-lg transition duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 ${
                 item.status === "Available"
-                  ? "bg-amber-500 text-white hover:bg-amber-600 active:bg-amber-700"
+                  ? "bg-amber-500 text-white hover:bg-amber-600"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              } order-1 sm:order-2`}
+              } order-1 sm:order-2 flex-1`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               {item.status === "Available" 
-                ? `Thêm vào giỏ - ${(item.price * quantity).toLocaleString()} USD`
+                ? `Thêm vào giỏ - ${totalPrice.toLocaleString('vi-VN')} VND`
                 : "Hết hàng"
               }
             </button>
           </div>
         </div>
       </div>
-
-      <style>{`
-        .safe-area-padding {
-          padding-left: env(safe-area-inset-left, 0px);
-          padding-right: env(safe-area-inset-right, 0px);
-          padding-bottom: env(safe-area-inset-bottom, 0px);
-        }
-        @supports(padding: max(0px)) {
-          .safe-area-padding {
-            padding-left: max(0px, env(safe-area-inset-left, 0px));
-            padding-right: max(0px, env(safe-area-inset-right, 0px));
-            padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
-          }
-        }
-      `}</style>
     </div>
   );
 };

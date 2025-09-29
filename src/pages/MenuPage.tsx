@@ -1,8 +1,8 @@
 import React, { FC, useEffect, useState, useMemo } from "react";
 import { menuApi } from "@/apis/menu.api";
 import FoodDetail from "./FoodDetail";
-import { useNavigate } from "react-router-dom"; // Nếu dùng React Router
-// Hoặc nếu dùng Next.js: import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
+import { useCart } from "@/hooks/useCart";
 
 interface Category {
   name: string;
@@ -23,24 +23,6 @@ interface MenuProps {
   title?: string;
 }
 
-// Mock data cho giỏ hàng - tạm thời
-const mockCartItems = [
-  {
-    id: 1,
-    name: "Pâté Gan Gà",
-    price: 185000,
-    quantity: 2,
-    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
-  },
-  {
-    id: 3,
-    name: "Salad Caprese", 
-    price: 165000,
-    quantity: 1,
-    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
-  }
-];
-
 const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -50,12 +32,11 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [activeItem, setActiveItem] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   
-  // Mock state cho số lượng giỏ hàng
-  const [cartItemCount, setCartItemCount] = useState<number>(3); // Tổng số lượng items
-  
-  // Sử dụng cho điều hướng
-  const navigate = useNavigate(); // React Router
-  // const router = useRouter(); // Next.js
+  // QUAN TRỌNG: Lấy cartItems để trigger re-render
+  const { addToCart, getTotalItems, cartItems } = useCart();
+  const cartItemCount = getTotalItems();
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -73,15 +54,14 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
     fetchMenuItems();
   }, []);
 
-  // Hàm xử lý điều hướng đến trang giỏ hàng
   const handleCartNavigation = () => {
-    // React Router
     navigate("/cart");
-    
-    // Hoặc Next.js
-    // router.push("/cart");
-    
-    console.log("Điều hướng đến trang giỏ hàng");
+  };
+
+  // Hàm xử lý mở popup đặt món
+  const handleOrderClick = (item: MenuItem) => {
+    if (item.status !== "Available") return;
+    setSelectedItem(item);
   };
 
   // Lấy danh sách categories duy nhất
@@ -141,7 +121,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header với background hình ảnh - Mobile Optimized */}
+      {/* Header với background hình ảnh */}
       <div className="relative bg-black text-white">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-40"
@@ -160,11 +140,11 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
         </div>
       </div>
 
-      {/* Navigation và Search - Mobile Optimized */}
+      {/* Navigation và Search */}
       <div className="sticky top-0 bg-white shadow-sm z-10">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between items-center">
-            {/* Category Navigation - Horizontal Scroll for Mobile */}
+            {/* Category Navigation */}
             <div className="w-full sm:w-auto">
               <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2 -mx-1 px-1">
                 {categories.map((category) => (
@@ -185,7 +165,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
             {/* Search và Cart Button Container */}
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {/* Search - Full width on mobile */}
+              {/* Search */}
               <div className="relative flex-1 sm:flex-none sm:w-64">
                 <input
                   type="text"
@@ -211,13 +191,12 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                 </div>
               </div>
 
-              {/* Cart Button - Mobile Optimized */}
+              {/* Cart Button - Số lượng sẽ cập nhật ngay lập tức */}
               <button
                 onClick={handleCartNavigation}
                 className="relative p-2 sm:p-3 text-gray-600 hover:text-gray-900 transition duration-200 bg-white border border-gray-200 rounded-full hover:shadow-md active:scale-95 touch-manipulation"
                 aria-label="Giỏ hàng"
               >
-                {/* Cart Icon */}
                 <svg 
                   className="w-5 h-5 sm:w-6 sm:h-6" 
                   fill="none" 
@@ -232,9 +211,9 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                   />
                 </svg>
                 
-                {/* Cart Counter Badge */}
+                {/* Hiển thị số lượng - sẽ cập nhật ngay lập tức */}
                 {cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full h-5 w-5 min-w-[1.25rem] flex items-center justify-center shadow-sm transform scale-100 transition-transform hover:scale-110">
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full h-5 w-5 min-w-[1.25rem] flex items-center justify-center shadow-sm">
                     {cartItemCount > 99 ? '99+' : cartItemCount}
                   </span>
                 )}
@@ -244,7 +223,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
         </div>
       </div>
 
-      {/* Menu Content - Mobile Optimized */}
+      {/* Menu Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8 md:py-12">
         {filteredItems.length === 0 ? (
           <div className="text-center py-12 sm:py-16 px-4">
@@ -270,7 +249,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                 onMouseLeave={() => setActiveItem(null)}
               >
                 <div className="flex flex-col sm:flex-row">
-                  {/* Image - Mobile optimized */}
+                  {/* Image */}
                   <div className="sm:w-2/5 relative overflow-hidden">
                     <img
                       src={
@@ -293,14 +272,14 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                     </div>
                   </div>
 
-                  {/* Content - Mobile optimized */}
+                  {/* Content */}
                   <div className="sm:w-3/5 p-4 sm:p-6 flex flex-col">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <h3 className="text-lg sm:text-xl font-serif font-semibold text-gray-900 flex-1 min-w-0">
                         <span className="truncate">{item.name}</span>
                       </h3>
                       <span className="text-lg sm:text-xl font-bold text-amber-600 flex-shrink-0 whitespace-nowrap ml-2">
-                        {item.price.toLocaleString()} USD
+                        {item.price.toLocaleString()} VND
                       </span>
                     </div>
 
@@ -314,10 +293,12 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                       {item.description}
                     </p>
 
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3 mt-auto">
+                    {/* Nút Đặt món ở bên trái */}
+                    <div className="flex justify-start mt-auto">
                       <button
-                        className="bg-black text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-gray-800 transition duration-300 font-medium flex items-center justify-center w-full sm:w-auto text-sm sm:text-base"
+                        onClick={() => handleOrderClick(item)}
                         disabled={item.status !== "Available"}
+                        className="bg-amber-500 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-amber-600 transition duration-300 font-medium flex items-center justify-center text-sm sm:text-base disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
                       >
                         <svg
                           className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
@@ -334,13 +315,6 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                         </svg>
                         Đặt món
                       </button>
-
-                      <button
-                        onClick={() => setSelectedItem(item)}
-                        className="bg-gray-100 text-gray-700 px-4 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-gray-200 transition text-sm sm:text-base w-full sm:w-auto text-center"
-                      >
-                        Xem chi tiết
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -350,10 +324,10 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
         )}
       </div>
 
-      {/* Modal Detail - Mobile Optimized */}
+      {/* FoodDetail Popup */}
       <FoodDetail item={selectedItem} onClose={() => setSelectedItem(null)} />
 
-      {/* Footer - Mobile Optimized */}
+      {/* Footer */}
       <div className="bg-gray-50 border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="text-center">
