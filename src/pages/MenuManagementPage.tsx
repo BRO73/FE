@@ -16,14 +16,13 @@ import {
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
-} from "@/services/menuItemService";
+} from "@/api/menuItem.api.ts";
 
 import {
   fetchCategories
-} from "@/services/categoryService.ts"
+} from "@/api/category.api.ts"
 import {CategoryResponse} from "@/types/type";
 import { MenuItemFormData,MenuItemResponse } from "@/types/type";
-import {deleteMenuItemApi, postMenuItem, putMenuItem} from "@/api/menuItemApi.ts";
 
 const MenuManagementPage = () => {
   const { toast } = useToast();
@@ -148,20 +147,20 @@ const MenuManagementPage = () => {
 
     try {
       if (formMode === "add") {
-        const response = await postMenuItem(payload);
-        const newItem = response.data;
-        console.log("Backend response:", response.data);
+        const response = await createMenuItem(payload);
+        const newItem = response;
+        console.log("Backend response:", response);
         // ✅ đảm bảo luôn có categoryName
         const normalizedItem = { ...newItem, categoryName: newItem.categoryName ?? "Unknown" };
         setMenuItems([...menuItems, normalizedItem]);
-        console.log("Updated menuItems state:", [...menuItems, response.data]);
+        console.log("Updated menuItems state:", [...menuItems, response]);
       } else if (formMode === "edit" && selectedMenuItem) {
-        const response = await putMenuItem(selectedMenuItem.id, payload);
-        console.log("Backend response:", response.data);
-        const updatedItem = response.data;
+        const response = await updateMenuItem(selectedMenuItem.id, payload);
+        console.log("Backend response:", response);
+        const updatedItem = response;
         const normalizedItem = { ...updatedItem, categoryName: updatedItem.categoryName ?? "Unknown" };
         setMenuItems(menuItems.map((m) => (m.id === selectedMenuItem.id ? normalizedItem : m)));
-        console.log("Updated menuItems state:", [...menuItems, response.data]);
+        console.log("Updated menuItems state:", [...menuItems, response]);
       }
 
       setIsFormModalOpen(false);
@@ -184,7 +183,7 @@ const MenuManagementPage = () => {
     setIsSubmitting(true);
     try {
       // ✅ Gọi API xóa menu item
-      await deleteMenuItemApi(selectedMenuItem.id);
+      await deleteMenuItem(selectedMenuItem.id);
 
       // ✅ Update state frontend
       setMenuItems(menuItems.filter(m => m.id !== selectedMenuItem.id));

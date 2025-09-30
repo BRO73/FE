@@ -1,6 +1,6 @@
-// services/categoryService.ts
+
 import axios from "axios";
-import { CategoryResponse } from "@/types/type";
+import { CategoryResponse } from "@/types/type.ts";
 
 const API_URL = "http://localhost:8082/api/categories";
 
