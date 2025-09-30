@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Edit, Save, X, Clock, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ImageUpload from "@/components/ImageUpload";
+
 
 import { updateMenuItem } from "@/api/menuItem.api";
 import { mapResponseToMenuItem, mapToFormData } from "@/utils/mappers";
 
-import { MenuItem } from "@/types/type"; // ✅ use UI type only
+import {CategoryResponse, MenuItem} from "@/types/type";
+import {fetchCategories} from "@/api/category.api.ts"; // ✅ use UI type only
 
 interface MenuItemViewCardProps {
   item: MenuItem;
@@ -21,7 +24,7 @@ const MenuItemViewCard = ({ item, onUpdate }: MenuItemViewCardProps) => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editedItem, setEditedItem] = useState<MenuItem>(item);
-
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
   // ✅ Keep editedItem in sync with props
   useEffect(() => {
     setEditedItem(item);
@@ -40,22 +43,27 @@ const MenuItemViewCard = ({ item, onUpdate }: MenuItemViewCardProps) => {
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "appetizer":
-        return "bg-emerald-500 text-white";
-      case "main":
-        return "bg-blue-500 text-white";
-      case "dessert":
-        return "bg-pink-500 text-white";
-      case "beverage":
-        return "bg-amber-500 text-white";
-      case "special":
-        return "bg-purple-500 text-white";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
+  const getCategoryColor = (category?: CategoryResponse) => {
+    // Nếu có color riêng → dùng
+    if (category?.imageUrl) return category.imageUrl;
+
+    // Màu mặc định cho tất cả category khác
+    return "#6B7280"; // màu xám
   };
+
+  useEffect(() => {
+    fetchCategories()
+        .then((res) => {
+          setCategories(res.data); // Lưu full object
+        })
+        .catch(() =>
+            toast({
+              title: "Error",
+              description: "Failed to load categories",
+              variant: "destructive",
+            })
+        );
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -95,29 +103,64 @@ const MenuItemViewCard = ({ item, onUpdate }: MenuItemViewCardProps) => {
         <div className="flex flex-col md:flex-row">
           {/* Image Section */}
           <div className="md:w-1/3 h-64 md:h-auto bg-muted relative">
-            {item.imageUrl ? (
-                <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <DollarSign className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No image</p>
-                  </div>
+            {isEditing ? (
+                <div className="flex flex-col justify-center items-center h-full gap-2 p-2">
+                  {editedItem.imageUrl ? (
+                      <img
+                          src={`http://localhost:8082${editedItem.imageUrl}`}
+                          alt={editedItem.name}
+                          className="max-w-full max-h-32 object-contain rounded"
+                      />
+                  ) : (
+                      <div className="w-full h-32 flex items-center justify-center text-muted-foreground">
+                        <DollarSign className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No image</p>
+                      </div>
+                  )}
+
+                  {/* ImageUpload khi đang edit */}
+                  <ImageUpload
+                      uploadUrl="http://localhost:8082/api/files/upload"
+                      onUpload={(url) => setEditedItem({ ...editedItem, imageUrl: url })}
+                  />
                 </div>
+            ) : (
+                item.imageUrl ? (
+                    <div className="flex justify-center items-center h-full">
+                      <img
+                          src={`http://localhost:8082${item.imageUrl}`}
+                          alt={item.name}
+                          className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <DollarSign className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No image</p>
+                      </div>
+                    </div>
+                )
             )}
+
             <div className="absolute top-3 left-3 flex gap-2">
-              <Badge className={getCategoryColor(item.category)}>
-                {item.category}
+              <Badge
+                  style={{
+                    backgroundColor: getCategoryColor(
+                        categories.find(
+                            (c) =>
+                                c.name.toLowerCase() === (item.category ?? "").toLowerCase()
+                        )
+                    ),
+                  }}
+              >
+                {item.category ?? "Unknown"}
               </Badge>
-              <Badge className={getStatusColor(item.status)}>
-                {item.status}
-              </Badge>
+
+              <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
             </div>
           </div>
+
 
           {/* Content Section */}
           <div className="md:w-2/3 p-6">
