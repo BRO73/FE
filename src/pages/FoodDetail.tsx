@@ -1,20 +1,6 @@
 import React, { useState } from "react";
 import { useCart } from "@/hooks/useCart";
-
-interface Category {
-  name: string;
-  description: string;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string;
-  imageUrl: string;
-  price: number;
-  status: string;
-  category: Category;
-}
+import { MenuItem } from "@/types/type";
 
 interface FoodDetailProps {
   item: MenuItem | null;
@@ -23,22 +9,34 @@ interface FoodDetailProps {
 
 const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
   const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState(""); // Thêm state cho ghi chú
   const { addToCart } = useCart();
 
   if (!item) return null;
 
   const handleAddToCart = () => {
-    // Thêm vào giỏ hàng với số lượng đã chọn
-    addToCart({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      imageUrl: item.imageUrl,
-      description: item.description,
-    }, quantity);
+    // Tạo description kết hợp mô tả gốc và ghi chú
+    const finalDescription = note 
+      ? `${item.description} (Ghi chú: ${note})`
+      : item.description;
+
+    // Thêm vào giỏ hàng với số lượng và ghi chú đã chọn
+    addToCart(
+      {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        imageUrl: item.imageUrl,
+        description: finalDescription,
+      }, 
+      quantity
+    );
     
     // Đóng popup sau khi thêm
     onClose();
+    // Reset form
+    setQuantity(1);
+    setNote("");
   };
 
   const incrementQuantity = () => {
@@ -50,6 +48,9 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
   };
 
   const totalPrice = item.price * quantity;
+
+  // Kiểm tra status (xử lý cả chữ hoa và chữ thường)
+  const isAvailable = item.status.toLowerCase() === "available";
 
   return (
     <div 
@@ -85,12 +86,19 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
           <div className="absolute top-3 right-3">
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                item.status === "Available"
+                isAvailable
                   ? "bg-green-500 text-white"
+                  : item.status.toLowerCase() === "seasonal"
+                  ? "bg-blue-500 text-white"
                   : "bg-red-500 text-white"
               }`}
             >
-              {item.status === "Available" ? "Có sẵn" : "Hết hàng"}
+              {isAvailable 
+                ? "Có sẵn" 
+                : item.status.toLowerCase() === "seasonal"
+                ? "Theo mùa"
+                : "Hết hàng"
+              }
             </span>
           </div>
         </div>
@@ -118,11 +126,25 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
           {/* Thông tin danh mục */}
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">Danh mục</h3>
-            <p className="text-gray-600 text-sm">{item.category.name}</p>
+            <p className="text-gray-600 text-sm">{item.category}</p>
           </div>
 
+          {/* Ô nhập ghi chú */}
+          {isAvailable && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Ghi chú cho món ăn</h3>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Thêm ghi chú cho món ăn (không cay, ít đường, v.v.)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                rows={3}
+              />
+            </div>
+          )}
+
           {/* Chọn số lượng - Chỉ hiện khi có sẵn */}
-          {item.status === "Available" && (
+          {isAvailable && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Số lượng</h3>
               <div className="flex items-center justify-between max-w-xs">
@@ -166,9 +188,9 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
             
             <button
               onClick={handleAddToCart}
-              disabled={item.status !== "Available"}
+              disabled={!isAvailable}
               className={`px-6 py-3 rounded-lg transition duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 ${
-                item.status === "Available"
+                isAvailable
                   ? "bg-amber-500 text-white hover:bg-amber-600"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               } order-1 sm:order-2 flex-1`}
@@ -176,7 +198,7 @@ const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {item.status === "Available" 
+              {isAvailable 
                 ? `Thêm vào giỏ - ${totalPrice.toLocaleString('vi-VN')} VND`
                 : "Hết hàng"
               }

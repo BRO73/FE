@@ -9,7 +9,7 @@ const mapToMenuItem = (res: MenuItemResponse): MenuItem => ({
     description: res.description,
     imageUrl: res.imageUrl,
     price: res.price,
-    status: res.status,
+    status: res.status.toLowerCase() as "available" | "unavailable" | "seasonal",
     category: res.categoryName, // ✅ map categoryName -> category
 });
 

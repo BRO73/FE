@@ -18,9 +18,9 @@ import TransactionsPage from "./pages/TransactionsPage";
 import NotFound from "@/pages/NotFound.tsx";
 import Login from "@/pages/Login.tsx";
 import Register from "@/pages/Register.tsx";
-import MenuPage from "./pages/MenuPage";
 import FoodDetail from "./pages/FoodDetail";
 import CartItem from "./pages/CartItem";
+import MenuPage from "./pages/MenuPage";
 
 
 

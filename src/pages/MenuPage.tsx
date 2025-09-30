@@ -1,23 +1,9 @@
 import React, { FC, useEffect, useState, useMemo } from "react";
-import { menuApi } from "@/apis/menu.api";
 import FoodDetail from "./FoodDetail";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/hooks/useCart";
-
-interface Category {
-  name: string;
-  description: string;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string;
-  imageUrl: string;
-  price: number;
-  status: string;
-  category: Category;
-}
+import { getAllMenuItems } from "@/api/menuItem.api";
+import { MenuItem } from "@/types/type";
 
 interface MenuProps {
   title?: string;
@@ -32,8 +18,8 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   const [activeItem, setActiveItem] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   
-  // QUAN TRỌNG: Lấy cartItems để trigger re-render
-  const { addToCart, getTotalItems, cartItems } = useCart();
+  // QUAN TRỌNG: Sử dụng cartVersion để trigger re-render
+  const { addToCart, getTotalItems, cartVersion } = useCart();
   const cartItemCount = getTotalItems();
 
   const navigate = useNavigate();
@@ -41,7 +27,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
-        const data = await menuApi.getAllMenuItems();
+        const data = await getAllMenuItems();
         setMenuItems(data);
       } catch (err) {
         setError("Không thể tải dữ liệu menu.");
@@ -60,15 +46,31 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
 
   // Hàm xử lý mở popup đặt món
   const handleOrderClick = (item: MenuItem) => {
-    if (item.status !== "Available") return;
+    if (item.status.toLowerCase() !== "available") return;
     setSelectedItem(item);
   };
 
-  // Lấy danh sách categories duy nhất
+  // Hàm xử lý thêm vào giỏ hàng trực tiếp (không qua popup)
+  const handleAddToCart = (item: MenuItem) => {
+    if (item.status.toLowerCase() !== "available") return;
+    
+    addToCart(
+      {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
+        description: item.description,
+      },
+      1
+    );
+  };
+
+  // Lấy danh sách categories duy nhất từ menuItems
   const categories = useMemo(() => {
     const uniqueCategories = [
-      ...new Set(menuItems.map((item) => item.category.name)),
-    ];
+      ...new Set(menuItems.map((item) => item.category)),
+    ].filter(Boolean);
     return ["Tất cả", ...uniqueCategories];
   }, [menuItems]);
 
@@ -77,7 +79,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
     return menuItems.filter((item) => {
       const matchesCategory =
         selectedCategory === "Tất cả" ||
-        item.category.name === selectedCategory;
+        item.category === selectedCategory;
       const matchesSearch =
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -85,39 +87,12 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
     });
   }, [menuItems, selectedCategory, searchTerm]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 safe-area-padding">
-        <div className="text-center">
-          <div className="animate-pulse flex flex-col items-center">
-            <div className="h-16 w-16 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Debug: log khi cartVersion thay đổi
+  useEffect(() => {
+    console.log("Cart updated, version:", cartVersion, "Item count:", cartItemCount);
+  }, [cartVersion, cartItemCount]);
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 safe-area-padding px-4">
-        <div className="text-center max-w-md w-full">
-          <div className="text-6xl mb-4">🍽️</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            Không thể tải menu
-          </h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300 w-full max-w-xs mx-auto"
-          >
-            Thử lại
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // ... (giữ nguyên phần JSX còn lại)
 
   return (
     <div className="min-h-screen bg-white">
@@ -191,7 +166,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                 </div>
               </div>
 
-              {/* Cart Button - Số lượng sẽ cập nhật ngay lập tức */}
+              {/* Cart Button - Sẽ cập nhật ngay lập tức nhờ cartVersion */}
               <button
                 onClick={handleCartNavigation}
                 className="relative p-2 sm:p-3 text-gray-600 hover:text-gray-900 transition duration-200 bg-white border border-gray-200 rounded-full hover:shadow-md active:scale-95 touch-manipulation"
@@ -211,7 +186,7 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                   />
                 </svg>
                 
-                {/* Hiển thị số lượng - sẽ cập nhật ngay lập tức */}
+                {/* Hiển thị số lượng - sẽ cập nhật ngay lập tức nhờ cartVersion */}
                 {cartItemCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full h-5 w-5 min-w-[1.25rem] flex items-center justify-center shadow-sm">
                     {cartItemCount > 99 ? '99+' : cartItemCount}
@@ -262,12 +237,19 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                     <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
                       <span
                         className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-semibold ${
-                          item.status === "Available"
+                          item.status.toLowerCase() === "available"
                             ? "bg-green-500 text-white"
+                            : item.status.toLowerCase() === "seasonal"
+                            ? "bg-blue-500 text-white"
                             : "bg-red-500 text-white"
                         }`}
                       >
-                        {item.status === "Available" ? "Có sẵn" : "Hết hàng"}
+                        {item.status.toLowerCase() === "available" 
+                          ? "Có sẵn" 
+                          : item.status.toLowerCase() === "seasonal"
+                          ? "Theo mùa"
+                          : "Hết hàng"
+                        }
                       </span>
                     </div>
                   </div>
@@ -279,13 +261,13 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                         <span className="truncate">{item.name}</span>
                       </h3>
                       <span className="text-lg sm:text-xl font-bold text-amber-600 flex-shrink-0 whitespace-nowrap ml-2">
-                        {item.price.toLocaleString()} VND
+                        {item.price.toLocaleString('vi-VN')} VND
                       </span>
                     </div>
 
                     <div className="mb-3 sm:mb-4">
                       <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm">
-                        {item.category.name}
+                        {item.category || "Không phân loại"}
                       </span>
                     </div>
 
@@ -293,11 +275,11 @@ const MenuPage: FC<MenuProps> = ({ title = "Thực Đơn Đặc Biệt" }) => {
                       {item.description}
                     </p>
 
-                    {/* Nút Đặt món ở bên trái */}
+                    {/* Nút Đặt món */}
                     <div className="flex justify-start mt-auto">
                       <button
                         onClick={() => handleOrderClick(item)}
-                        disabled={item.status !== "Available"}
+                        disabled={item.status.toLowerCase() !== "available"}
                         className="bg-amber-500 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-amber-600 transition duration-300 font-medium flex items-center justify-center text-sm sm:text-base disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
                       >
                         <svg
