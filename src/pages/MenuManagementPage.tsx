@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import MenuItemFormModal from "@/components/forms/MenuItemFormModal";
 import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
+import MenuItemViewCard from "@/components/ui/MenuItemViewCard";
+import CategoryFormModal, { Category } from "@/components/forms/CategoryFormModal";
+
 
 import {
   getAllMenuItems,
@@ -255,63 +258,51 @@ const MenuManagementPage = () => {
           <h3 className="text-lg font-semibold">Menu Items ({filteredItems.length})</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-auto">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Item</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Category</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Price</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Prep Time</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Status</th>
-                <th className="text-right py-4 px-6 font-medium text-muted-foreground">Actions</th>
-              </tr>
+            <tr className="border-b border-border">
+              <th className="text-left py-4 px-4 font-medium text-muted-foreground">Item</th>
+              <th className="text-center py-4 px-4 font-medium text-muted-foreground">Category</th>
+              <th className="text-center py-4 px-4 font-medium text-muted-foreground">Price</th>
+              <th className="text-center py-4 px-4 font-medium text-muted-foreground">Image Url</th>
+              <th className="text-center py-4 px-4 font-medium text-muted-foreground">Status</th>
+              <th className="text-center py-4 px-4 font-medium text-muted-foreground">Actions</th>
+            </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item) => (
-                <tr key={item.id} className="table-row">
-                  <td>
-                    <div>
-                      <div className="font-medium text-foreground">{item.name}</div>
-                      <div className="text-sm text-muted-foreground">{item.description}</div>
-                    </div>
+            {filteredItems.map((item) => (
+                <tr key={item.id} className="border-b">
+                  <td className="py-2 px-4 text-left">
+                    <div className="font-medium text-foreground">{item.name}</div>
+                    <div className="text-sm text-muted-foreground">{item.description}</div>
                   </td>
-                  <td>
+                  <td className="py-2 px-4 text-center">
                     <Badge className={getCategoryColor(item.categoryName ?? "unknown")}>
                       {item.categoryName ?? "Unknown"}
                     </Badge>
-
-
                   </td>
-                  <td className="font-medium text-foreground">${item.price}</td>
-
-                  <td>
-                    <Badge className={getStatusColor(item.status)}>
-                      {item.status}
-                    </Badge>
+                  <td className="py-2 px-4 text-center font-medium text-foreground">${item.price}</td>
+                  <td className="py-2 px-4 text-center font-medium text-foreground">{item.imageUrl}</td>
+                  <td className="py-2 px-4 text-center">
+                    <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
                   </td>
-                  <td className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditMenuItem(item)}
-                      >
+                  <td className="py-2 px-4 text-center">
+                    <div className="flex justify-center items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditMenuItem(item)}>
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteMenuItem(item)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteMenuItem(item)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
-
                     </div>
                   </td>
                 </tr>
-              ))}
+            ))}
             </tbody>
           </table>
+
+
+
         </div>
       </Card>
 

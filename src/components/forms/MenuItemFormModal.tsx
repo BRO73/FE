@@ -55,15 +55,33 @@ const MenuItemFormModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
     const [categories, setCategories] = useState<string[]>([]);
 
-  const form = useForm<MenuItemFormData>({
-    defaultValues: {
-      name: "",
-      categoryName: "All",
-      price: 0,
-      description: "",
-      status: "available",
-    },
-  });
+// Trong defaultValues và reset
+    const form = useForm<MenuItemFormData>({
+        defaultValues: {
+            name: "",
+            categoryName: "All",
+            price: 0,
+            description: "",
+            status: "available",
+            imageUrl: "", // ✅ thêm default cho image
+        },
+    });
+
+    useEffect(() => {
+        if (menuItem && mode === "edit") {
+            form.reset(menuItem);
+        } else if (mode === "add") {
+            form.reset({
+                name: "",
+                categoryName: categories[0] || "all",
+                price: 0,
+                description: "",
+                status: "available",
+                imageUrl: "", // ✅ reset image
+            });
+        }
+    }, [menuItem, mode, categories]);
+
 
     useEffect(() => {
         fetchCategories()
@@ -248,8 +266,24 @@ const MenuItemFormModal = ({
                       </FormItem>
                   )}
               />
+                {/* Image URL */}
+                {/* Image URL */}
+                <FormField
+                    control={form.control}
+                    name="imageUrl"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Image URL</FormLabel>
+                            <FormControl>
+                                <Input placeholder="https://example.com/image.jpg" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
-              <DialogFooter>
+
+                <DialogFooter>
                 <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
