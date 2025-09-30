@@ -22,10 +22,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
+// ✅ Schema based on CategoryRequest
 const categorySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name too long"),
-  slug: z.string().min(2, "Slug must be at least 2 characters").max(50, "Slug too long"),
   description: z.string().max(200, "Description too long").optional(),
+  imageUrl: z.string().url("Must be a valid URL").optional(),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -33,8 +34,8 @@ type CategoryFormData = z.infer<typeof categorySchema>;
 export interface Category {
   id: number;
   name: string;
-  slug: string;
   description?: string;
+  imageUrl?: string;
 }
 
 interface CategoryFormModalProps {
@@ -45,7 +46,13 @@ interface CategoryFormModalProps {
   mode: "add" | "edit";
 }
 
-const CategoryFormModal = ({ isOpen, onClose, onSubmit, category, mode }: CategoryFormModalProps) => {
+const CategoryFormModal = ({
+                             isOpen,
+                             onClose,
+                             onSubmit,
+                             category,
+                             mode,
+                           }: CategoryFormModalProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,31 +60,24 @@ const CategoryFormModal = ({ isOpen, onClose, onSubmit, category, mode }: Catego
     resolver: zodResolver(categorySchema),
     defaultValues: {
       name: "",
-      slug: "",
       description: "",
+      imageUrl: "",
     },
   });
 
   useEffect(() => {
     if (category && mode === "edit") {
       form.setValue("name", category.name);
-      form.setValue("slug", category.slug);
       form.setValue("description", category.description || "");
+      form.setValue("imageUrl", category.imageUrl || "");
     } else if (mode === "add") {
       form.reset({
         name: "",
-        slug: "",
         description: "",
+        imageUrl: "",
       });
     }
   }, [category, mode, form]);
-
-  const handleNameChange = (value: string) => {
-    form.setValue("name", value);
-    // Auto-generate slug from name
-    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    form.setValue("slug", slug);
-  };
 
   const handleSubmit = async (data: CategoryFormData) => {
     setIsSubmitting(true);
@@ -106,88 +106,91 @@ const CategoryFormModal = ({ isOpen, onClose, onSubmit, category, mode }: Catego
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "add" ? "Add New Category" : "Edit Category"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "add" 
-              ? "Create a new menu category."
-              : "Update the category information."
-            }
-          </DialogDescription>
-        </DialogHeader>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>
+              {mode === "add" ? "Add New Category" : "Edit Category"}
+            </DialogTitle>
+            <DialogDescription>
+              {mode === "add"
+                  ? "Create a new menu category."
+                  : "Update the category information."}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Main Course" 
-                      {...field} 
-                      onChange={(e) => handleNameChange(e.target.value)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              {/* Name */}
+              <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Main Course" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                  )}
+              />
 
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slug (URL friendly)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="main-course" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Description */}
+              <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                              placeholder="Brief description of the category..."
+                              {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                  )}
+              />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Brief description of the category..."
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Image URL */}
+              <FormField
+                  control={form.control}
+                  name="imageUrl"
+                  render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://example.com/image.jpg" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                  )}
+              />
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Add Category" : "Update Category"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              {/* Footer */}
+              <DialogFooter>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting
+                      ? "Saving..."
+                      : mode === "add"
+                          ? "Add Category"
+                          : "Update Category"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
   );
 };
 

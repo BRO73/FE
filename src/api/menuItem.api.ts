@@ -1,52 +1,56 @@
-
+// api/menuItemApi.ts
 import api from "@/api/axiosInstance";
-import { MenuItemResponse, MenuItemFormData } from "@/types/type";
+import { MenuItemResponse, MenuItemFormData, MenuItem } from "@/types/type";
 
-// Lấy tất cả menu items
-export const getAllMenuItems = async (): Promise<MenuItemResponse[]> => {
+// Mapper: API → UI
+const mapToMenuItem = (res: MenuItemResponse): MenuItem => ({
+    id: res.id,
+    name: res.name,
+    description: res.description,
+    imageUrl: res.imageUrl,
+    price: res.price,
+    status: res.status,
+    category: res.categoryName, // ✅ map categoryName -> category
+});
+
+// --- API functions ---
+export const getAllMenuItems = async (): Promise<MenuItem[]> => {
     const { data } = await api.get<MenuItemResponse[]>("/menu-items");
-    return data;
+    return data.map(mapToMenuItem);
 };
 
-// Lấy menu item theo id
-export const getMenuItemById = async (id: number): Promise<MenuItemResponse> => {
+export const getMenuItemById = async (id: number): Promise<MenuItem> => {
     const { data } = await api.get<MenuItemResponse>(`/menu-items/${id}`);
-    return data;
+    return mapToMenuItem(data);
 };
 
-// Tạo mới menu item
-export const createMenuItem = async (payload: MenuItemFormData): Promise<MenuItemResponse> => {
+export const createMenuItem = async (payload: MenuItemFormData): Promise<MenuItem> => {
     const { data } = await api.post<MenuItemResponse>("/menu-items", payload);
-    return data;
+    return mapToMenuItem(data);
 };
 
-// Cập nhật menu item
-export const updateMenuItem = async (id: number, payload: MenuItemFormData): Promise<MenuItemResponse> => {
+export const updateMenuItem = async (id: number, payload: MenuItemFormData): Promise<MenuItem> => {
     const { data } = await api.put<MenuItemResponse>(`/menu-items/${id}`, payload);
-    return data;
+    return mapToMenuItem(data);
 };
 
-// Xóa menu item
 export const deleteMenuItem = async (id: number): Promise<void> => {
     await api.delete(`/menu-items/${id}`);
 };
 
-// Lấy menu items theo category
-export const getMenuItemsByCategory = async (categoryName: string): Promise<MenuItemResponse[]> => {
+export const getMenuItemsByCategory = async (categoryName: string): Promise<MenuItem[]> => {
     const { data } = await api.get<MenuItemResponse[]>(`/menu-items/category/${categoryName}`);
-    return data;
+    return data.map(mapToMenuItem);
 };
 
-// Lấy menu items theo status
 export const getMenuItemsByStatus = async (
     status: "available" | "unavailable" | "seasonal"
-): Promise<MenuItemResponse[]> => {
+): Promise<MenuItem[]> => {
     const { data } = await api.get<MenuItemResponse[]>(`/menu-items/status/${status}`);
-    return data;
+    return data.map(mapToMenuItem);
 };
 
-// Search menu items by name
-export const searchMenuItemsByName = async (name: string): Promise<MenuItemResponse[]> => {
+export const searchMenuItemsByName = async (name: string): Promise<MenuItem[]> => {
     const { data } = await api.get<MenuItemResponse[]>("/menu-items/search", { params: { name } });
-    return data;
+    return data.map(mapToMenuItem);
 };
