@@ -19,6 +19,8 @@ import NotFound from "@/pages/NotFound.tsx";
 import Login from "@/pages/Login.tsx";
 import Register from "@/pages/Register.tsx";
 import MenuPage from "./pages/MenuPage";
+import FoodDetail from "./pages/FoodDetail";
+import CartItem from "./pages/CartItem";
 
 
 
@@ -36,6 +38,7 @@ const App = () => (
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="/menu" element={<MenuPage />} />
+            <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
 
 
