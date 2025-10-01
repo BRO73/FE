@@ -406,16 +406,17 @@ const MenuManagementPage = () => {
 
             {/* Detailed View */}
             {viewMode === "detailed" && (
-                <div className="space-y-6">
+                <div className="flex flex-wrap gap-6 justify-start">
                   {filteredItems.map((item) => (
-                      <MenuItemViewCard
-                          key={item.id}
-                          item={item}
-                          onUpdate={handleMenuItemUpdate}
-                      />
+                      <div key={item.id} className="w-[49%] flex-shrink-0">
+                        <MenuItemViewCard item={item} onUpdate={handleMenuItemUpdate} />
+                      </div>
                   ))}
                 </div>
             )}
+
+
+
 
             {/* List View - Desktop Table */}
             {viewMode === "list" && (
@@ -432,7 +433,7 @@ const MenuManagementPage = () => {
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Item</th>
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Category</th>
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Price</th>
-                        <th className="text-left py-4 px-6 font-medium text-muted-foreground">Image Url</th>
+                        <th className="text-left py-4 px-6 font-medium text-muted-foreground">Image Detail</th>
                         <th className="text-center py-4 px-6 font-medium text-muted-foreground">Status</th>
                         <th className="text-right py-4 px-6 font-medium text-muted-foreground">
                           Actions
