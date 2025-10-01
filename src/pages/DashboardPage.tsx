@@ -15,9 +15,16 @@ import MetricCard from "@/components/ui/MetricCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+import {
+  getAllMenuItems
+} from "@/api/menuItem.api.ts"
+import {
+  MenuItem
+} from "@/types/type.ts"
+import { useState } from "react";
 const DashboardPage = () => {
   const navigate = useNavigate();
-
+  const [menuItems,setMenuItems] = useState()
   // Mock data for demonstration
   const metrics = [
     {
