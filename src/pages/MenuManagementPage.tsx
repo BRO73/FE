@@ -26,7 +26,9 @@ import {
 
 import {CategoryRequest, CategoryResponse, MenuItem} from "@/types/type";
 import { MenuItemFormData,MenuItemResponse } from "@/types/type";
+
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+
 
 const MenuManagementPage = () => {
   const {toast} = useToast();
@@ -45,6 +47,24 @@ const MenuManagementPage = () => {
   const [isCategoryDeleteOpen, setIsCategoryDeleteOpen] = useState(false);
   const [categoryFormMode, setCategoryFormMode] = useState<"add" | "edit">("add");
   const [selectedCategory2, setSelectedCategory2] = useState<CategoryResponse | undefined>();
+
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("http://localhost:8082/api/files/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    setImageUrl(data.url); // lưu link trả về từ backend
+  };
 
 
   useEffect(() => {
@@ -93,22 +113,12 @@ const MenuManagementPage = () => {
   });
 
 
-  const getCategoryColor = (category?: MenuItemResponse["categoryName"]) => {
-    if (!category) return "bg-muted text-muted-foreground"; // fallback
-    switch (category.toLowerCase()) {
-      case "appetizer":
-        return "bg-emerald-500 text-white";
-      case "main":
-        return "bg-blue-500 text-white";
-      case "dessert":
-        return "bg-pink-500 text-white";
-      case "beverage":
-        return "bg-amber-500 text-white";
-      case "special":
-        return "bg-purple-500 text-white";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
+  const getCategoryColor = (category?: Category) => {
+    // Nếu có color riêng → dùng
+    if (category?.imageUrl) return category.imageUrl;
+
+    // Màu mặc định cho tất cả category khác
+    return "#6B7280"; // màu xám
   };
 
   const getStatusColor = (status: MenuItemResponse["status"]) => {
@@ -416,59 +426,96 @@ const MenuManagementPage = () => {
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full table-auto">
                       <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Item</th>
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Category</th>
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground">Price</th>
-                        <th className="text-left py-4 px-6 font-medium text-muted-foreground">Prep Time</th>
-                        <th className="text-left py-4 px-6 font-medium text-muted-foreground">Status</th>
-                        <th className="text-right py-4 px-6 font-medium text-muted-foreground">Actions</th>
+                        <th className="text-left py-4 px-6 font-medium text-muted-foreground">Image Url</th>
+                        <th className="text-center py-4 px-6 font-medium text-muted-foreground">Status</th>
+                        <th className="text-right py-4 px-6 font-medium text-muted-foreground">
+                          Actions
+                        </th>
                       </tr>
                       </thead>
                       <tbody>
                       {filteredItems.map((item) => (
-                          <tr key={item.id} className="table-row">
-                            <td>
+                          <tr key={item.id} className="border-b border-border">
+                            {/* Item */}
+                            <td className="text-left py-4 px-6">
                               <div>
                                 <div className="font-medium text-foreground">{item.name}</div>
                                 <div className="text-sm text-muted-foreground">{item.description}</div>
                               </div>
                             </td>
-                            <td>
-                              <Badge className={getCategoryColor(item.category ?? "unknown")}>
-                                {item.category ?? "Unknown"}
-                              </Badge>
+
+                            <td className="text-left py-4 px-6">
+                              {(() => {
+                                // tìm object category tương ứng với tên
+                                const categoryObj = categories.find(
+                                    (c) => c.name.toLowerCase() === (item.category ?? "").toLowerCase()
+                                );
+
+                                return (
+                                    <Badge style={{ backgroundColor: getCategoryColor(categoryObj) }}>
+                                      {item.category ?? "Unknown"}
+                                    </Badge>
+                                );
+                              })()}
                             </td>
-                            <td className="font-medium text-foreground">${item.price}</td>
-                            <td>
+
+
+                            {/* Price */}
+                            <td className="text-left py-4 px-6 font-medium text-foreground">
+                              ${item.price}
+                            </td>
+
+                            <td className="text-left py-4 px-6">
+                              {item.imageUrl ? (
+                                  <img
+                                      src={`http://localhost:8082${item.imageUrl}`}
+                                      alt={item.name}
+                                      className="w-12 h-12 object-cover rounded"
+                                  />
+                              ) : (
+                                  "-"
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td className="text-center py-4 px-6">
                               <Badge className={getStatusColor(item.status)}>
                                 {item.status}
                               </Badge>
                             </td>
-                            <td className="text-right">
-                              <div className="flex items-center justify-end gap-2">
+
+                            {/* Actions */}
+                            <td className="text-right py-4 px-6 align-middle">
+                              <div className="inline-flex items-center gap-2">
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleEditMenuItem(item)}
                                 >
-                                  <Edit className="w-4 h-4"/>
+                                  <Edit className="w-4 h-4" />
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteMenuItem(item)}
                                 >
-                                  <Trash2 className="w-4 h-4"/>
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
                             </td>
+
+
                           </tr>
                       ))}
                       </tbody>
                     </table>
+
                   </div>
                 </Card>
             )}
@@ -484,9 +531,12 @@ const MenuManagementPage = () => {
                             <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                           </div>
                           <div className="flex flex-col gap-2 ml-4">
-                            <Badge className={getCategoryColor(item.category)}>
-                              {item.category}
+                            <Badge style={{ backgroundColor: getCategoryColor(
+                                  categories.find(c => c.name.toLowerCase() === (item.category ?? "").toLowerCase())
+                              ) }}>
+                              {item.category ?? "Unknown"}
                             </Badge>
+
                             <Badge className={getStatusColor(item.status)}>
                               {item.status}
                             </Badge>

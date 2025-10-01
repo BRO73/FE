@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { fetchCategories } from "@/api/category.api";
 import { CategoryResponse, MenuItem, MenuItemFormData } from "@/types/type";
-
+import ImageUpload from "@/components/ImageUpload";
 // ✅ Props
 interface MenuItemFormModalProps {
     isOpen: boolean;
@@ -60,6 +60,7 @@ const MenuItemFormModal = ({
             imageUrl: "",
         },
     });
+
 
     // Load categories
     useEffect(() => {
@@ -250,23 +251,35 @@ const MenuItemFormModal = ({
                             )}
                         />
 
-                        {/* Image URL */}
                         <FormField
                             control={form.control}
                             name="imageUrl"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Image URL</FormLabel>
+                                    <FormLabel>Image</FormLabel>
                                     <FormControl>
-                                        <Input
-                                            placeholder="https://example.com/image.jpg"
-                                            {...field}
-                                        />
+                                        {/* Bọc tất cả trong 1 div */}
+                                        <div className="flex flex-col gap-2">
+                                            {/* Input ẩn vẫn dùng để bind form */}
+                                            <Input
+                                                placeholder="Image URL"
+                                                {...field}
+                                                className="mb-2"
+                                            />
+
+                                            {/* Component ImageUpload */}
+                                            <ImageUpload
+                                                uploadUrl="http://localhost:8082/api/files/upload"
+                                                onUpload={(url) => field.onChange(url)}
+                                            />
+                                        </div>
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+
+
 
                         <DialogFooter>
                             <Button
