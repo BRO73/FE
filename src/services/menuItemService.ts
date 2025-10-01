@@ -1,4 +1,5 @@
-import api from "@/api/axiosInstance";
+// import api from "@/api/axiosInstance";
+import api from "@/api/apiClient";
 import { MenuItemResponse, MenuItemFormData } from "@/types/type";
 
 // Lấy tất cả menu items

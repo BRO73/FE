@@ -9,7 +9,8 @@ import {
   Megaphone,
   BarChart3,
   CreditCard,
-  X
+  X,
+    UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,8 @@ const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Table Management", href: "/admin/tables", icon: Table },
   { name: "Staff Management", href: "/admin/staff", icon: Users },
-  { name: "Menu Management", href: "/admin/menu", icon: ChefHat },
+  { name: "Menu Management", href: "/admin/menu", icon: UtensilsCrossed  },
+    { name: "Kitchen", href: "/admin/kitchen", icon: ChefHat },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Feedback", href: "/admin/feedback", icon: MessageSquare },
   { name: "Promotions", href: "/admin/promotions", icon: Megaphone },
