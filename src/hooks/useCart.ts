@@ -10,33 +10,39 @@ export interface CartItem {
   description: string;
 }
 
-// Tạo một event bus đơn giản để thông báo thay đổi
-const cartUpdateEvent = new Event('cartUpdated');
+const CART_STORAGE_KEY = 'cart';
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [cartVersion, setCartVersion] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
+    const savedCart = localStorage.getItem(CART_STORAGE_KEY);
     if (savedCart) {
       try {
         const parsedCart = JSON.parse(savedCart);
-        setCartItems(parsedCart);
+        if (Array.isArray(parsedCart)) {
+          setCartItems(parsedCart);
+        }
       } catch (error) {
         console.error('Error parsing cart from localStorage:', error);
         setCartItems([]);
       }
     }
+    setIsInitialized(true);
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage and increment version
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-    // Kích hoạt event khi cart thay đổi
-    window.dispatchEvent(cartUpdateEvent);
-  }, [cartItems]);
+    if (!isInitialized) return;
+    
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    // Tăng version để trigger re-render ở các component sử dụng hook
+    setCartVersion(prev => prev + 1);
+  }, [cartItems, isInitialized]);
 
   const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
     setCartItems(prevItems => {
@@ -73,7 +79,7 @@ export const useCart = () => {
 
   const clearCart = () => {
     setCartItems([]);
-    localStorage.removeItem('cart');
+    localStorage.removeItem(CART_STORAGE_KEY);
   };
 
   const getTotalItems = () => {
@@ -94,7 +100,7 @@ export const useCart = () => {
   };
 
   return {
-    cartItems, // QUAN TRỌNG: Trả về cartItems để component có thể subscribe
+    cartItems,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -104,5 +110,6 @@ export const useCart = () => {
     showOrderSuccess,
     handleCheckout,
     closeOrderSuccess,
+    cartVersion, // Trả về cartVersion để component có thể subscribe
   };
 };

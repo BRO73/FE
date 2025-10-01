@@ -26,7 +26,9 @@ import {
 
 import {CategoryRequest, CategoryResponse, MenuItem} from "@/types/type";
 import { MenuItemFormData,MenuItemResponse } from "@/types/type";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+
 
 const MenuManagementPage = () => {
   const {toast} = useToast();
