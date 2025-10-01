@@ -6,6 +6,11 @@ export interface CategoryResponse {
     description?: string;
     imageUrl?: string;
 }
+export interface CategoryRequest {
+    name: string;
+    description: string;
+    imageUrl: string;
+}
 
 
 // Response từ backend
@@ -31,6 +36,16 @@ export interface MenuItemFormData {
     price: number;
     status: "available" | "unavailable" | "seasonal";
     categoryName: string; // lưu name của category
+}
+// types/type.ts
+export interface MenuItem {
+    id: number;
+    name: string;
+    description: string;
+    imageUrl?: string;
+    price: number;
+    status: "available" | "unavailable" | "seasonal";
+    category: string; // ✅ keep it as `category` for UI simplicity
 }
 
 
