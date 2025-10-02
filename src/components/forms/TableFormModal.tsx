@@ -28,29 +28,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { TableFormData, TableResponse } from "@/types/type";
 
+/** Schema đúng shape FE/BE: "available" | "occupied" | "reserved" | "maintenance" */
 const tableSchema = z.object({
-  number: z.string().min(1, "Table number is required").max(10, "Table number too long"),
-  floor: z.string().min(1, "Floor is required"),
-  seats: z.coerce.number().min(1, "At least 1 seat required").max(20, "Maximum 20 seats"),
+  tableNumber: z.string().min(1, "Table number is required").max(10, "Too long"),
+  capacity: z.coerce.number().min(1, "At least 1 seat").max(20, "Maximum 20 seats"),
+  locationId: z.coerce.number().min(1, "Location is required"),
   status: z.enum(["available", "occupied", "reserved", "maintenance"]),
 });
 
-type TableFormData = z.infer<typeof tableSchema>;
-
-interface Table {
-  id: number;
-  number: string;
-  floor: string;
-  seats: number;
-  status: "available" | "occupied" | "reserved" | "maintenance";
-}
+type FormInput = z.input<typeof tableSchema>;   // input cho form (cho phép coerce)
+type FormOutput = z.output<typeof tableSchema>; // output sau validate (đúng kiểu cuối)
 
 interface TableFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: TableFormData) => void;
-  table?: Table;
+  table?: TableResponse;
   mode: "add" | "edit";
 }
 
@@ -58,39 +53,43 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<TableFormData>({
+  // Khai báo form theo FormInput để hỗ trợ coerce string->number
+  const form = useForm<FormInput>({
     resolver: zodResolver(tableSchema),
     defaultValues: {
-      number: "",
-      floor: "",
-      seats: 4,
+      tableNumber: "",
+      capacity: 4,
+      locationId: 0,
       status: "available",
     },
   });
 
   useEffect(() => {
     if (table && mode === "edit") {
-      form.setValue("number", table.number);
-      form.setValue("floor", table.floor);
-      form.setValue("seats", table.seats);
+      form.setValue("tableNumber", table.tableNumber);
+      form.setValue("capacity", table.capacity);
+      form.setValue("locationId", table.locationId);
       form.setValue("status", table.status);
     } else if (mode === "add") {
       form.reset({
-        number: "",
-        floor: "",
-        seats: 4,
+        tableNumber: "",
+        capacity: 4,
+        locationId: 0,
         status: "available",
       });
     }
   }, [table, mode, form]);
 
-  const handleSubmit = async (data: TableFormData) => {
+  const handleSubmit = async (raw: FormInput) => {
     setIsSubmitting(true);
     try {
-      onSubmit(data);
+      // Parse qua schema để chắc chắn output đã là number, enum đúng
+      const data: FormOutput = tableSchema.parse(raw);
+      onSubmit(data as TableFormData);
+
       toast({
         title: mode === "add" ? "Table Created" : "Table Updated",
-        description: `Table ${data.number} has been ${mode === "add" ? "created" : "updated"} successfully.`,
+        description: `Table ${data.tableNumber} has been ${mode === "add" ? "created" : "updated"} successfully.`,
       });
       onClose();
       form.reset();
@@ -114,22 +113,20 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "add" ? "Add New Table" : "Edit Table"}
-          </DialogTitle>
+          <DialogTitle>{mode === "add" ? "Add New Table" : "Edit Table"}</DialogTitle>
           <DialogDescription>
-            {mode === "add" 
+            {mode === "add"
               ? "Create a new table for your restaurant."
-              : "Update the table information."
-            }
+              : "Update the table information."}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {/* Table Number */}
             <FormField
               control={form.control}
-              name="number"
+              name="tableNumber"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Table Number</FormLabel>
@@ -141,44 +138,37 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
               )}
             />
 
+            {/* Capacity */}
             <FormField
               control={form.control}
-              name="floor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Floor</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select floor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Ground Floor">Ground Floor</SelectItem>
-                        <SelectItem value="First Floor">First Floor</SelectItem>
-                        <SelectItem value="Second Floor">Second Floor</SelectItem>
-                        <SelectItem value="Terrace">Terrace</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="seats"
+              name="capacity"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Number of Seats</FormLabel>
                   <FormControl>
-                    <Input type="number" min="1" max="20" {...field} />
+                    <Input type="number" min={1} max={20} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Location ID */}
+            <FormField
+              control={form.control}
+              name="locationId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="Enter location id" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Status */}
             <FormField
               control={form.control}
               name="status"
