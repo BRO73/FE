@@ -1,5 +1,4 @@
-
-// types/type.ts
+// Category
 export interface CategoryResponse {
     id: number;
     name: string;   // "main", "appetizer", "dessert", "beverage", "special"
@@ -12,8 +11,7 @@ export interface CategoryRequest {
     imageUrl: string;
 }
 
-
-// Response từ backend
+// Menu Item
 export interface MenuItemResponse {
     id: number;
     name: string;
@@ -28,16 +26,15 @@ export interface MenuItemResponse {
     activated: boolean;
 }
 
-// Data dùng cho form
 export interface MenuItemFormData {
     name: string;
     description: string;
     imageUrl: string;
     price: number;
     status: "available" | "unavailable" | "seasonal";
-    categoryName: string; // lưu name của category
+    categoryName: string; 
 }
-// types/type.ts
+
 export interface MenuItem {
     id: number;
     name: string;
@@ -45,7 +42,44 @@ export interface MenuItem {
     imageUrl?: string;
     price: number;
     status: "available" | "unavailable" | "seasonal";
-    category: string; // ✅ keep it as `category` for UI simplicity
+    category: string; 
 }
 
+// Location
+export interface LocationResponse {
+  id: number;
+  name: string;
+  description?: string;
+}
 
+export interface LocationRequest {
+  name: string;
+  description?: string;
+}
+
+export interface LocationFormData {
+  name: string;
+  description?: string;
+}
+
+// Table
+export interface TableResponse {
+    id: number;
+    tableNumber: string;
+    capacity: number;
+    locationId: number;
+    locationName: string;
+    status: "available" | "occupied" | "reserved" | "maintenance";
+}
+export interface TableRequest {
+    tableNumber: string;
+    capacity: number;
+    locationId: number;
+    status: "available" | "occupied" | "reserved" | "maintenance";
+}
+export interface TableFormData {
+    tableNumber: string;
+    capacity: number;
+    locationId: number;
+    status: "available" | "occupied" | "reserved" | "maintenance";
+}

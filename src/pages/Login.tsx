@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthHeader from "@/components/login/AuthHeader";
 import AuthFooter from "@/components/login/AuthFooter";
 import FloatingInput from "@/components/login/FloatingInput";
@@ -15,11 +15,13 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
+
+    // Clear error khi user nhập lại
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
@@ -46,20 +48,45 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setLoading(true);
-    
-    // Simulate API call
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch("http://localhost:8081/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+          storeName: formData.storeName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Login failed");
+      }
+
+      const data = await response.json();
+
+      // ✅ Lưu token vào localStorage
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
+
+
       toast({
         title: "Đăng nhập thành công!",
         description: `Chào mừng ${formData.username} quay trở lại.`,
       });
+
+      // 👉 Điều hướng sang dashboard (hoặc trang chủ)
+      navigate("/admin");
+
     } catch (error) {
       toast({
         title: "Đăng nhập thất bại",
@@ -75,7 +102,7 @@ const Login = () => {
     <div className="min-h-screen bg-login flex flex-col items-center justify-center p-3 sm:p-4">
       <div className="w-full max-w-md">
         <AuthHeader />
-        
+
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <FloatingInput
@@ -106,10 +133,7 @@ const Login = () => {
             />
 
             <div className="pt-4">
-              <LoadingButton
-                type="submit"
-                loading={loading}
-              >
+              <LoadingButton type="submit" loading={loading}>
                 Đăng nhập
               </LoadingButton>
             </div>
