@@ -85,7 +85,7 @@ const Login = () => {
       });
 
       // 👉 Điều hướng sang dashboard (hoặc trang chủ)
-      navigate("/dashboard");
+      navigate("/admin");
 
     } catch (error) {
       toast({
