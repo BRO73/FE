@@ -64,7 +64,6 @@ const Login = () => {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          // Nếu BE yêu cầu storeName, thì thêm dòng này:
           storeName: formData.storeName,
         }),
       });
@@ -76,8 +75,9 @@ const Login = () => {
       const data = await response.json();
 
       // ✅ Lưu token vào localStorage
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
+
 
       toast({
         title: "Đăng nhập thành công!",

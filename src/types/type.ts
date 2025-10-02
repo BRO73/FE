@@ -47,17 +47,19 @@ export interface MenuItem {
 
 // Location
 export interface LocationResponse {
-    id: number;
-    name: string;
-    description?: string;
+  id: number;
+  name: string;
+  description?: string;
 }
+
 export interface LocationRequest {
-    name: string;
-    description?: string;
+  name: string;
+  description?: string;
 }
+
 export interface LocationFormData {
-    name: string;
-    description?: string;
+  name: string;
+  description?: string;
 }
 
 // Table
