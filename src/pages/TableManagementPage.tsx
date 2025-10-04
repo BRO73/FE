@@ -56,7 +56,7 @@ const TableManagementPage = () => {
 
   // Status color
   const getStatusColor = (status: TableResponse["status"]) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "available":
         return "bg-green-500 text-white";
       case "occupied":
@@ -216,34 +216,49 @@ const TableManagementPage = () => {
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="py-3 px-4 text-left">Table</th>
-                  <th className="py-3 px-4 text-left">Capacity</th>
-                  <th className="py-3 px-4 text-left">Location</th>
-                  <th className="py-3 px-4 text-left">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-center">Table</th>
+                  <th className="py-3 px-4 text-center">Capacity</th>
+                  <th className="py-3 px-4 text-center">Location</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} className="text-center py-6">Loading...</td></tr>
+                  <tr>
+                    <td colSpan={5} className="text-center py-6">Loading...</td>
+                  </tr>
                 ) : error ? (
-                  <tr><td colSpan={5} className="text-center py-6 text-red-500">{error}</td></tr>
+                  <tr>
+                    <td colSpan={5} className="text-center py-6 text-red-500">{error}</td>
+                  </tr>
                 ) : (
                   filteredTables.map((table) => (
                     <tr key={table.id} className="border-t">
-                      <td>{table.tableNumber}</td>
-                      <td>{table.capacity}</td>
-                      <td>{table.locationName}</td>
-                      <td><Badge className={getStatusColor(table.status)}>{table.status}</Badge></td>
-                      <td className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditTable(table)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteTable(table)}><Trash2 className="w-4 h-4" /></Button>
+                      <td className="text-center align-middle">{table.tableNumber}</td>
+                      <td className="text-center align-middle">{table.capacity}</td>
+                      <td className="text-center align-middle">{table.locationName}</td>
+                      <td className="text-center align-middle">
+                        <Badge className={getStatusColor(table.status)}>
+                          {table.status}
+                        </Badge>
+                      </td>
+                      <td className="text-center align-middle">
+                        <div className="flex justify-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditTable(table)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteTable(table)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+
           </Card>
         </TabsContent>
 
@@ -268,30 +283,41 @@ const TableManagementPage = () => {
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="py-3 px-4 text-left">Name</th>
-                  <th className="py-3 px-4 text-left">Description</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-center">Name</th>
+                  <th className="py-3 px-4 text-center">Description</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {locationLoading ? (
-                  <tr><td colSpan={3} className="text-center py-6">Loading...</td></tr>
+                  <tr>
+                    <td colSpan={3} className="text-center py-6">Loading...</td>
+                  </tr>
                 ) : locationError ? (
-                  <tr><td colSpan={3} className="text-center py-6 text-red-500">{locationError}</td></tr>
+                  <tr>
+                    <td colSpan={3} className="text-center py-6 text-red-500">{locationError}</td>
+                  </tr>
                 ) : (
                   filteredLocations.map((loc) => (
                     <tr key={loc.id} className="border-t">
-                      <td>{loc.name}</td>
-                      <td>{loc.description}</td>
-                      <td className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditLocation(loc)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteLocation(loc)}><Trash2 className="w-4 h-4" /></Button>
+                      <td className="text-center align-middle">{loc.name}</td>
+                      <td className="text-center align-middle">{loc.description}</td>
+                      <td className="text-center align-middle">
+                        <div className="flex justify-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditLocation(loc)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteLocation(loc)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+
           </Card>
         </TabsContent>
       </Tabs>

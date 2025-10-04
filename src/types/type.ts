@@ -69,17 +69,17 @@ export interface TableResponse {
     capacity: number;
     locationId: number;
     locationName: string;
-    status: "available" | "occupied" | "reserved" | "maintenance";
+    status: "Available" | "Occupied" | "Reserved" | "Maintenance";
 }
 export interface TableRequest {
     tableNumber: string;
     capacity: number;
     locationId: number;
-    status: "available" | "occupied" | "reserved" | "maintenance";
+    status: "Available" | "Occupied" | "Reserved" | "Maintenance";
 }
 export interface TableFormData {
     tableNumber: string;
     capacity: number;
     locationId: number;
-    status: "available" | "occupied" | "reserved" | "maintenance";
+    status: "Available" | "Occupied" | "Reserved" | "Maintenance";
 }
