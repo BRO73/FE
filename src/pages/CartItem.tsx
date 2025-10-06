@@ -11,21 +11,41 @@ const CartItem: React.FC = () => {
     updateQuantity, 
     getTotalItems, 
     getTotalPrice,
-    clearCart
+    clearCart,
+    updateNote
   } = useCart();
   
   const [showStaffPopup, setShowStaffPopup] = useState(false);
-  const [hasConfirmedOrder, setHasConfirmedOrder] = useState(false);
-  const [confirmedQuantities, setConfirmedQuantities] = useState<{[key: number]: number}>({});
+  const [hasConfirmedOrder, setHasConfirmedOrder] = useState<boolean>(() => {
+    const saved = localStorage.getItem('hasConfirmedOrder');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [confirmedQuantities, setConfirmedQuantities] = useState<{[key: number]: number}>(() => {
+    const saved = localStorage.getItem('confirmedQuantities');
+    return saved ? JSON.parse(saved) : {};
+  });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  
+  // State cho chức năng chỉnh sửa ghi chú
+  const [editingNoteForItemId, setEditingNoteForItemId] = useState<number | null>(null);
+  const [noteInputs, setNoteInputs] = useState<{ [key: number]: string }>({});
   
   const totalItems = getTotalItems();
   const subtotal = getTotalPrice();
   const tax = Math.round(subtotal * 0.1);
   const total = subtotal + tax;
 
-  // Sửa lỗi: Sử dụng useCallback để tránh re-render vô hạn
+  // Lưu trạng thái vào localStorage khi thay đổi
+  useEffect(() => {
+    localStorage.setItem('hasConfirmedOrder', JSON.stringify(hasConfirmedOrder));
+  }, [hasConfirmedOrder]);
+
+  useEffect(() => {
+    localStorage.setItem('confirmedQuantities', JSON.stringify(confirmedQuantities));
+  }, [confirmedQuantities]);
+
+  // Đồng bộ confirmed quantities với cart items
   const updateConfirmedQuantities = useCallback(() => {
     if (hasConfirmedOrder) {
       const newConfirmedQuantities = { ...confirmedQuantities };
@@ -66,7 +86,34 @@ const CartItem: React.FC = () => {
   const handleRemove = (id: number) => {
     if (!hasConfirmedOrder) {
       removeFromCart(id);
+      
+      // Cập nhật confirmedQuantities nếu cần
+      if (confirmedQuantities[id]) {
+        const newConfirmedQuantities = { ...confirmedQuantities };
+        delete newConfirmedQuantities[id];
+        setConfirmedQuantities(newConfirmedQuantities);
+      }
     }
+  };
+
+  // Hàm xử lý chỉnh sửa ghi chú
+  const handleEditNote = (itemId: number, currentNote: string = "") => {
+    setEditingNoteForItemId(itemId);
+    setNoteInputs(prev => ({
+      ...prev,
+      [itemId]: currentNote
+    }));
+  };
+
+  const handleSaveNote = (itemId: number) => {
+    if (noteInputs[itemId] !== undefined) {
+      updateNote(itemId, noteInputs[itemId]);
+    }
+    setEditingNoteForItemId(null);
+  };
+
+  const handleCancelEditNote = () => {
+    setEditingNoteForItemId(null);
   };
 
   const handleCallStaff = () => {
@@ -122,6 +169,9 @@ const CartItem: React.FC = () => {
     setHasConfirmedOrder(false);
     setConfirmedQuantities({});
     setShowPaymentPopup(false);
+    // Xóa dữ liệu khỏi localStorage khi thanh toán
+    localStorage.removeItem('hasConfirmedOrder');
+    localStorage.removeItem('confirmedQuantities');
   };
 
   return (
@@ -237,8 +287,8 @@ const CartItem: React.FC = () => {
         </div>
       )}
 
-      {/* Main Content - Đã sửa padding bottom */}
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-24"> {/* Giảm pb-32 xuống pb-24 */}
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-foreground mb-2">Order của bạn</h1>
           <p className="text-muted-foreground">Kiểm tra và xác nhận order</p>
@@ -301,7 +351,7 @@ const CartItem: React.FC = () => {
                       />
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-foreground text-lg">{item.name}</h3>
@@ -311,25 +361,84 @@ const CartItem: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{item.description}</p>
                           </div>
-                          <button
-                            onClick={() => handleRemove(item.id)}
-                            disabled={isConfirmed}
-                            className={`ml-4 p-2 flex-shrink-0 rounded-lg transition-all ${
-                              isConfirmed 
-                                ? 'text-muted-foreground/30 cursor-not-allowed' 
-                                : 'text-destructive hover:bg-destructive/10 active:scale-95'
-                            }`}
-                            title={isConfirmed ? "Món đã xác nhận, không thể xóa" : "Xóa món"}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {/* Nút chỉnh sửa ghi chú */}
+                            <button
+                              onClick={() => handleEditNote(item.id, item.note)}
+                              className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-primary/10 active:scale-95"
+                              title="Chỉnh sửa ghi chú"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            {/* Nút xóa */}
+                            <button
+                              onClick={() => handleRemove(item.id)}
+                              disabled={isConfirmed}
+                              className={`p-2 rounded-lg transition-all ${
+                                isConfirmed 
+                                  ? 'text-muted-foreground/30 cursor-not-allowed' 
+                                  : 'text-destructive hover:bg-destructive/10 active:scale-95'
+                              }`}
+                              title={isConfirmed ? "Món đã xác nhận, không thể xóa" : "Xóa món"}
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Mô tả món ăn */}
+                        <p className="text-muted-foreground text-sm mb-2 line-clamp-2">{item.description}</p>
+                        
+                        {/* Phần ghi chú */}
+                        <div className="mb-3">
+                          {editingNoteForItemId === item.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={noteInputs[item.id] || ''}
+                                onChange={(e) => setNoteInputs(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                className="w-full p-2 border border-border rounded-lg text-sm bg-background resize-none"
+                                placeholder="Thêm ghi chú cho món này..."
+                                rows={2}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleSaveNote(item.id)}
+                                  size="sm"
+                                  className="text-xs h-8"
+                                >
+                                  Lưu
+                                </Button>
+                                <Button
+                                  onClick={handleCancelEditNote}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-8"
+                                >
+                                  Hủy
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              {item.note ? (
+                                <p className="text-sm text-muted-foreground">
+                                  <span className="font-medium">Ghi chú:</span> {item.note}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground/70 italic">
+                                  Chưa có ghi chú
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         
-                        <div className="flex justify-between items-center mt-4">
+                        <div className="flex justify-between items-center">
                           <span className="text-primary font-bold text-lg">
                             {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                           </span>
@@ -442,9 +551,9 @@ const CartItem: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom Action Buttons - Đã sửa vị trí */}
+      {/* Bottom Action Buttons */}
       {cartItems.length > 0 && (
-        <div className="sticky bottom-4 left-0 right-0 mx-4 mt-8"> {/* Thay fixed bằng sticky và thêm margin */}
+        <div className="sticky bottom-4 left-0 right-0 mx-4 mt-8">
           <div className="max-w-4xl mx-auto bg-card border border-border rounded-2xl p-4 shadow-lg">
             <div className="flex gap-3">
               <Button

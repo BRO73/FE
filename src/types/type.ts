@@ -49,3 +49,14 @@ export interface MenuItem {
 }
 
 
+export interface PageResponse<T> {
+    content: T[];          // danh sách dữ liệu thực sự (list item)
+    totalPages: number;    // tổng số trang
+    totalElements: number; // tổng số phần tử
+    size: number;          // số item mỗi trang
+    number: number;        // số trang hiện tại (0-based)
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+  }
+  

@@ -9,29 +9,25 @@ interface FoodDetailProps {
 
 const FoodDetail: React.FC<FoodDetailProps> = ({ item, onClose }) => {
   const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState(""); // Thêm state cho ghi chú
+  const [note, setNote] = useState(""); // State cho ghi chú
   const { addToCart } = useCart();
 
   if (!item) return null;
 
   const handleAddToCart = () => {
-    // Tạo description kết hợp mô tả gốc và ghi chú
-    const finalDescription = note 
-      ? `${item.description} (Ghi chú: ${note})`
-      : item.description;
-
-    // Thêm vào giỏ hàng với số lượng và ghi chú đã chọn
+    // Thêm vào giỏ hàng với ghi chú riêng biệt (không nối vào description)
     addToCart(
       {
         id: item.id,
         name: item.name,
         price: item.price,
         imageUrl: item.imageUrl,
-        description: finalDescription,
+        description: item.description, // Giữ nguyên description gốc
+        note: note, // Ghi chú riêng
       }, 
       quantity
     );
-    
+    window.location.reload();
     // Đóng popup sau khi thêm
     onClose();
     // Reset form
