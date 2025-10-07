@@ -1,281 +1,459 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-    getKitchenBoard,
-    KitchenItem,
-    KitchenFlatResponse,
-    updateMenuAvailability,
-} from "@/api/kitchenApi";
-import { Button } from "@/components/ui/button";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useMemo, useState } from "react";
+import { useKitchen } from "../hooks/useKitchen";
+import type { KitchenTicketDto } from "../api/kitchenApi";
 
-type SortMode = "Newest" | "Oldest";
+type KitchenTicket = KitchenTicketDto;
+type TabKey = "priority" | "byDish" | "byTable";
+
+type GroupDish = {
+    key: string;
+    name: string;
+    notes?: string | null;
+    items: KitchenTicket[];
+    earliest: number;
+    totalQty: number;
+};
+type GroupTable = { key: string; table: string; items: KitchenTicket[] };
 
 export default function KitchenDashboardPage() {
-    const { toast } = useToast();
+    const { loading, error, tickets, connected, updateStatus, refresh, completeOneUnit, completeAllUnits, serveOneUnit } =
+        useKitchen({ intervalMs: 3000 });
 
-    // Phương án A: trạng thái không-null ngay từ đầu
-    const [resp, setResp] = useState<KitchenFlatResponse>({
-        serverTime: "",
-        items: [],
-    });
-    const [sortMode, setSortMode] = useState<SortMode>("Newest");
-    const [loading, setLoading] = useState(false);
+    const pending: KitchenTicket[] = Array.isArray(tickets?.pending) ? (tickets!.pending as KitchenTicket[]) : [];
+    const working: KitchenTicket[] = Array.isArray(tickets?.inProgress) ? (tickets!.inProgress as KitchenTicket[]) : [];
+    const ready: KitchenTicket[] = Array.isArray(tickets?.ready) ? (tickets!.ready as KitchenTicket[]) : [];
 
-    // track món mới để highlight 3s
-    const seenRef = useRef<Set<number>>(new Set());
-    const [recentHighlight, setRecentHighlight] = useState<Record<number, number>>({});
+    const [active, setActive] = useState<TabKey>("priority");
+    const [q, setQ] = useState("");
 
-    // modal state
-    const [open, setOpen] = useState(false);
-    const [selected, setSelected] = useState<KitchenItem | null>(null);
-    const [targetAvail, setTargetAvail] = useState<boolean>(true); // true = "Còn món", false = "Hết món"
-    const [countdown, setCountdown] = useState<number>(0);
+    const matchQ = (s?: string) => (q ? (s || "").toLowerCase().includes(q.toLowerCase()) : true);
 
-    // danh sách hiển thị (đã sort)
-    const list: KitchenItem[] = useMemo(() => {
-        const sorted = [...resp.items].sort((a, b) => {
-            const ta = new Date(a.orderedAt).getTime();
-            const tb = new Date(b.orderedAt).getTime();
-            return sortMode === "Newest" ? tb - ta : ta - tb;
+    const priorityList: KitchenTicket[] = useMemo(() => {
+        const all: KitchenTicket[] = [...pending, ...working];
+        all.sort((a, b) => {
+            const ta = a.orderedAt ? Date.parse(a.orderedAt) : 0;
+            const tb = b.orderedAt ? Date.parse(b.orderedAt) : 0;
+            if (ta !== tb) return ta - tb;
+            return (a.orderDetailId || 0) - (b.orderDetailId || 0);
         });
-        return sorted;
-    }, [resp.items, sortMode]);
+        return all.filter((t) => matchQ(t.dishName) || matchQ(t.tableNumber));
+    }, [pending, working, q]);
 
-    // loader dùng được cả cho polling và nút Refresh
-    const loadDashboard = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getKitchenBoard(50);
-            const items = Array.isArray(data?.items) ? data.items : [];
-
-            // highlight 3s cho item lần đầu nhìn thấy
-            const now = Date.now();
-            const nextRecent: Record<number, number> = {};
-            for (const it of items) {
-                if (!seenRef.current.has(it.orderDetailId)) {
-                    nextRecent[it.orderDetailId] = now + 3000;
-                    seenRef.current.add(it.orderDetailId);
-                }
-            }
-            if (Object.keys(nextRecent).length > 0) {
-                setRecentHighlight((curr) => ({ ...curr, ...nextRecent }));
-            }
-
-            setResp({
-                serverTime: data?.serverTime ?? new Date().toISOString(),
-                items,
-            });
-        } catch {
-            toast({
-                variant: "destructive",
-                title: "Không tải được dữ liệu bếp",
-                description: "Vui lòng thử lại sau ít phút.",
-            });
-        } finally {
-            setLoading(false);
+    const byDish: GroupDish[] = useMemo(() => {
+        const all: KitchenTicket[] = [...pending, ...working];
+        const groups = new Map<string, { key: string; name: string; notes?: string | null; items: KitchenTicket[] }>();
+        for (const t of all) {
+            if (!(matchQ(t.dishName) || matchQ(t.tableNumber))) continue;
+            const notesKey = (t.notes || "").trim().toLowerCase();
+            const key = `${t.dishName}__${notesKey}`;
+            if (!groups.has(key)) groups.set(key, { key, name: t.dishName, notes: t.notes, items: [] });
+            groups.get(key)!.items.push(t);
         }
-    }, [toast]);
+        const list: GroupDish[] = Array.from(groups.values()).map((g) => {
+            const earliest = g.items.map((i) => (i.orderedAt ? Date.parse(i.orderedAt) : 0)).sort((a, b) => a - b)[0] ?? 0;
+            return { ...g, earliest, totalQty: g.items.reduce((s, i) => s + (i.quantity ?? 0), 0) };
+        });
+        list.sort((a, b) => a.earliest - b.earliest);
+        return list;
+    }, [pending, working, q]);
 
-    // Poll mỗi 5s
-    useEffect(() => {
-        let alive = true;
-        // gọi lần đầu
-        loadDashboard();
-
-        const t = setInterval(() => {
-            if (alive) loadDashboard();
-        }, 5000);
-
-        return () => {
-            alive = false;
-            clearInterval(t);
-        };
-    }, [loadDashboard]);
-
-    // clear highlight khi hết hạn (0.5s kiểm tra một lần)
-    useEffect(() => {
-        const t = setInterval(() => {
-            const now = Date.now();
-            let changed = false;
-            const updated: Record<number, number> = {};
-            for (const [idStr, expiry] of Object.entries(recentHighlight)) {
-                if (expiry > now) {
-                    updated[Number(idStr)] = expiry;
-                } else {
-                    changed = true;
-                }
-            }
-            if (changed) setRecentHighlight(updated);
-        }, 500);
-        return () => clearInterval(t);
-    }, [recentHighlight]);
-
-    // mở modal; nếu là Hết món? → bật countdown 3s
-    const openConfirm = (row: KitchenItem, makeAvailable: boolean) => {
-        setSelected(row);
-        setTargetAvail(makeAvailable);
-        setCountdown(makeAvailable ? 0 : 3);
-        setOpen(true);
-    };
-
-    // chạy countdown khi cần (Hết món?)
-    useEffect(() => {
-        if (!open || countdown <= 0) return;
-        const t = setInterval(() => setCountdown((c) => (c > 0 ? c - 1 : 0)), 1000);
-        return () => clearInterval(t);
-    }, [open, countdown]);
-
-    const handleConfirm = async () => {
-        if (!selected) return;
-        try {
-            await updateMenuAvailability(selected.menuItemId, targetAvail);
-
-            // ép literal type để không bị widen sang string
-            const newStatus: KitchenItem["menuStatus"] = targetAvail ? "Available" : "Unavailable";
-
-            // cập nhật UI tức thì (optimistic)
-            setResp((prev) => {
-                const patched: KitchenItem[] = prev.items.map((it) =>
-                    it.menuItemId === selected.menuItemId ? { ...it, menuStatus: newStatus } : it
-                );
-                return { ...prev, items: patched };
-            });
-
-            toast({
-                title: "Thành công",
-                description: `Đã cập nhật: ${selected.dishName} → ${
-                    targetAvail ? "Còn món" : "Hết món"
-                }.`,
-            });
-        } catch {
-            toast({
-                variant: "destructive",
-                title: "Thất bại",
-                description: "Không thể cập nhật, vui lòng thử lại.",
-            });
-        } finally {
-            setOpen(false);
-            setSelected(null);
-            setCountdown(0);
+    const byTable: GroupTable[] = useMemo(() => {
+        const all: KitchenTicket[] = [...pending, ...working];
+        const groups = new Map<string, GroupTable>();
+        for (const t of all) {
+            const table = t.tableNumber || "N/A";
+            if (!(matchQ(t.dishName) || matchQ(table))) continue;
+            if (!groups.has(table)) groups.set(table, { key: table, table, items: [] });
+            groups.get(table)!.items.push(t);
         }
-    };
-
-    const renderRow = (it: KitchenItem) => {
-        const isNew = !!recentHighlight[it.orderDetailId];
-        const isAvailable = it.menuStatus === "Available";
-        return (
-            <div
-                key={it.orderDetailId}
-                className={`grid grid-cols-12 items-center gap-2 px-3 py-2 border-b ${
-                    isNew ? "animate-pulse bg-yellow-50" : ""
-                }`}
-            >
-                <div className="col-span-4 font-semibold">{it.dishName}</div>
-                <div className="col-span-1 text-center">{it.quantity}</div>
-                <div className="col-span-1 text-center">{it.tableNumber}</div>
-                <div className="col-span-3 italic opacity-80 truncate">{it.notes ?? ""}</div>
-                <div className="col-span-1 text-center">
-                    {isAvailable ? "🟢 Còn món" : "🔴 Hết món"}
-                </div>
-                <div className="col-span-2 text-right">
-                    {isAvailable ? (
-                        <Button
-                            variant="destructive"
-                            onClick={() => openConfirm(it, false)}
-                            aria-label={`Đánh dấu "${it.dishName}" hết món`}
-                        >
-                            Hết món?
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="default"
-                            onClick={() => openConfirm(it, true)}
-                            aria-label={`Đánh dấu "${it.dishName}" còn món`}
-                        >
-                            Còn món?
-                        </Button>
-                    )}
-                </div>
-            </div>
-        );
-    };
+        const list: GroupTable[] = Array.from(groups.values()).map((g) => {
+            g.items.sort((a, b) => {
+                const ta = a.orderedAt ? Date.parse(a.orderedAt) : 0;
+                const tb = b.orderedAt ? Date.parse(b.orderedAt) : 0;
+                return ta - tb;
+            });
+            return g;
+        });
+        list.sort((a, b) => a.table.localeCompare(b.table, "vi"));
+        return list;
+    }, [pending, working, q]);
 
     return (
-        <>
-            <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Kitchen Dashboard</h1>
-                    <div className="flex items-center gap-3">
-                        <div className="text-sm opacity-70">
-                            {resp.serverTime
-                                ? `Server time: ${new Date(resp.serverTime).toLocaleString()}`
-                                : "Đang tải..."}
-                        </div>
-                        <label className="text-sm">Sort:</label>
-                        <select
-                            className="border rounded px-2 py-1"
-                            value={sortMode}
-                            onChange={(e) => setSortMode(e.target.value as SortMode)}
-                        >
-                            <option>Newest</option>
-                            <option>Oldest</option>
-                        </select>
-                        <Button onClick={loadDashboard} disabled={loading}>
-                            {loading ? "Đang tải..." : "Refresh"}
-                        </Button>
-                    </div>
+        <div style={page}>
+            <header style={header}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <h2 style={{ margin: 0, color: "#111827" }}>Màn hình Bếp</h2>
+                    <span title={connected ? "Đang kết nối nguồn dữ liệu" : "Mất kết nối"}>{connected ? "🟢" : "🔴"}</span>
                 </div>
-
-                <div className="grid grid-cols-12 gap-2 px-3 py-2 font-semibold border-b">
-                    <div className="col-span-4">Món ăn</div>
-                    <div className="col-span-1 text-center">SL</div>
-                    <div className="col-span-1 text-center">Bàn</div>
-                    <div className="col-span-3">Ghi chú</div>
-                    <div className="col-span-1 text-center">Trạng thái</div>
-                    <div className="col-span-2 text-right">Hành động</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <input placeholder="Tìm theo tên món / số bàn (F3)" value={q} onChange={(e) => setQ(e.target.value)} style={searchInput} />
+                    <button onClick={() => refresh()} style={btnPrimary}>
+                        Làm mới
+                    </button>
                 </div>
+            </header>
 
-                {list.map(renderRow)}
-                {list.length === 0 && (
-                    <div className="text-center opacity-70 py-8">
-                        {loading ? "Đang tải dữ liệu..." : "Chưa có món mới"}
+            {loading && <div style={bannerInfo}>Đang tải dữ liệu bếp…</div>}
+            {!loading && error && <div style={bannerError}>Lỗi: {error}</div>}
+
+            <div style={grid}>
+               
+                <section style={leftCol}>
+                    <div style={tabs}>
+                        <button onClick={() => setActive("priority")} style={tabBtn(active === "priority")}>
+                            Ưu tiên
+                        </button>
+                        <button onClick={() => setActive("byDish")} style={tabBtn(active === "byDish")}>
+                            Theo món
+                        </button>
+                        <button onClick={() => setActive("byTable")} style={tabBtn(active === "byTable")}>
+                            Theo phòng/bàn
+                        </button>
                     </div>
-                )}
+
+                    {/* Ưu tiên */}
+                    <div style={{ display: active === "priority" ? "block" : "none" }}>
+                        {priorityList.length === 0 ? (
+                            <EmptyBox title="Không có món nào cần chế biến." />
+                        ) : (
+                            <ul style={list}>
+                                {priorityList.map((t) => {
+                                    const showActions = isPending(t.status) || isInProgress(t.status);
+                                    return (
+                                        <li key={`p-${t.orderDetailId}`} style={card}>
+                                            <div style={row}>
+                                                <strong style={{ color: "#111827" }}>{t.dishName}</strong>
+                                                <QtyBadge qty={t.quantity} />
+                                            </div>
+                                            <div style={muted}>
+                                                Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId} {t.orderedAt ? `• ${fmtTime(t.orderedAt)}` : ""}
+                                            </div>
+                                            {t.notes ? <div style={{ ...muted, fontStyle: "italic" }}>Ghi chú: {t.notes}</div> : null}
+
+                                            {showActions && (
+                                                <div style={{ ...row, marginTop: 8, gap: 6, justifyContent: "flex-end" }}>
+
+                                                    {t.quantity >= 2 && (
+                                                        <button title="Hoàn tất 1 đơn vị" style={btnOne} onClick={() => completeOneUnit(t.orderDetailId)}>
+                                                            &gt;
+                                                        </button>
+                                                    )}
+
+                                                    <button title="Hoàn tất toàn bộ" style={btnAll} onClick={() => completeAllUnits(t.orderDetailId)}>
+                                                        &gt;&gt;
+                                                    </button>
+                                                    <button style={btnDangerSm} onClick={() => confirmCancel(() => updateStatus(t.orderDetailId, "CANCELED"))}>
+                                                        Hủy
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Theo món */}
+                    <div style={{ display: active === "byDish" ? "block" : "none" }}>
+                        {byDish.length === 0 ? (
+                            <EmptyBox title="Không có nhóm món." />
+                        ) : (
+                            <ul style={list}>
+                                {byDish.map((g) => (
+                                    <li key={g.key} style={card}>
+                                        <div style={row}>
+                                            <strong style={{ color: "#111827" }}>{g.name}</strong>
+                                            <span style={pillDark}>Tổng: {g.totalQty}</span>
+                                        </div>
+                                        {g.notes ? <div style={{ ...muted, fontStyle: "italic" }}>Ghi chú: {g.notes}</div> : null}
+                                        <div style={{ ...row, marginTop: 8, flexWrap: "wrap", gap: 6, justifyContent: "flex-start" }}>
+                                            {g.items.slice(0, 8).map((t) => (
+                                                <span key={t.orderDetailId} style={chip}>
+                          {t.tableNumber} x{t.quantity}
+                        </span>
+                                            ))}
+                                            {g.items.length > 8 && <span style={muted}>+{g.items.length - 8}…</span>}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Theo bàn */}
+                    <div style={{ display: active === "byTable" ? "block" : "none" }}>
+                        {byTable.length === 0 ? (
+                            <EmptyBox title="Không có bàn nào có món cần chế biến." />
+                        ) : (
+                            <ul style={list}>
+                                {byTable.map((g) => (
+                                    <li key={g.key} style={card}>
+                                        <div style={row}>
+                                            <strong style={{ color: "#111827" }}>Bàn {g.table}</strong>
+                                        </div>
+                                        <ul style={{ ...list, marginTop: 8 }}>
+                                            {g.items.map((t) => (
+                                                <li key={t.orderDetailId} style={{ ...row, padding: "6px 0", borderBottom: "1px dashed #eee" }}>
+                                                    <span>{t.dishName}</span>
+                                                    <span>x{t.quantity}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </section>
+
+                {/* RIGHT: Đã xong / Chờ cung ứng */}
+                <aside style={rightCol}>
+                    <h3 style={{ marginTop: 0, color: "#111827" }}>Đã xong / Chờ cung ứng</h3>
+                    {ready.length === 0 ? (
+                        <EmptyBox title="Chưa có món mới hoàn tất.">
+                            <button onClick={() => refresh()} style={btnPrimary}>
+                                Làm mới
+                            </button>
+                        </EmptyBox>
+                    ) : (
+                        <ul style={list}>
+                            {ready
+                                .slice()
+                                .sort((a, b) => {
+                                    const ta = a.orderedAt ? Date.parse(a.orderedAt) : 0;
+                                    const tb = b.orderedAt ? Date.parse(b.orderedAt) : 0;
+                                    return tb - ta;
+                                })
+                                .map((t) => (
+                                    <li key={`r-${t.orderDetailId}`} style={cardSoft}>
+                                        <div style={row}>
+                                            <strong style={{ color: "#065f46" }}>{t.dishName}</strong>
+                                            <QtyBadge qty={t.quantity} accent="green" />
+                                        </div>
+                                        <div style={{ ...muted, color: "#065f46" }}>
+                                            Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId}
+                                        </div>
+                                        <div style={{ ...row, marginTop: 8, gap: 6, justifyContent: "flex-end" }}>
+                                            {t.quantity > 2 && (
+                                                <button title="Xuất 1 đơn vị" style={btnOneGreen} onClick={() => serveOneUnit(t.orderDetailId)}>
+                                                    &gt;
+                                                </button>
+                                            )}
+                                            {/* Nếu muốn thêm “>> Xuất hết”, có thể thêm sau */}
+                                        </div>
+                                    </li>
+                                ))}
+                        </ul>
+                    )}
+                </aside>
             </div>
-
-            {/* Modal xác nhận */}
-            <AlertDialog open={open} onOpenChange={setOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            {targetAvail ? "✅ Xác nhận còn món" : "❗ Xác nhận hết món"}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {selected
-                                ? targetAvail
-                                    ? `Bạn có chắc muốn mở lại món "${selected.dishName}" để có thể order trong các đơn mới không?`
-                                    : `Bạn có chắc muốn đánh dấu món "${selected.dishName}" là Hết món không?`
-                                : ""}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setCountdown(0)}>Huỷ</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirm} disabled={!targetAvail && countdown > 0}>
-                            {targetAvail ? "Xác nhận" : countdown > 0 ? `Xác nhận (${countdown})` : "Xác nhận"}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </>
+        </div>
     );
+}
+
+/* ===== Components nhỏ ===== */
+function EmptyBox({ title, children }: { title: string; children?: React.ReactNode }) {
+    return (
+        <div style={emptyBox}>
+            <div style={{ fontWeight: 600, marginBottom: 6, color: "#111827" }}>{title}</div>
+            {children ? <div style={{ marginTop: 8 }}>{children}</div> : <div style={{ color: "#6b7280" }}>—</div>}
+        </div>
+    );
+}
+function QtyBadge({ qty, accent }: { qty: number; accent?: "green" | "gray" }) {
+    const style = accent === "green" ? pillGreen : pillDark;
+    return <span style={style}>x{qty}</span>;
+}
+
+/* ===== Helpers ===== */
+function fmtTime(iso: string): string {
+    const d = new Date(iso);
+    const hh = d.getHours().toString().padStart(2, "0");
+    const mm = d.getMinutes().toString().padStart(2, "0");
+    return `${hh}:${mm}`;
+}
+function normStatus(s?: string) {
+    return (s || "").trim().toUpperCase().replace(/[-\s]+/g, "_");
+}
+function isPending(s?: string) {
+    return normStatus(s) === "PENDING";
+}
+function isInProgress(s?: string) {
+    return normStatus(s) === "IN_PROGRESS";
+}
+
+/* ===== Styles – nền xám ấm, chữ đậm, card nổi (không trắng xoá nữa) ===== */
+const page: React.CSSProperties = {
+    padding: 16,
+    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto",
+    background: "#f5f6f8",
+    color: "#111827",
+    minHeight: "100vh",
+};
+
+const header: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+};
+
+const searchInput: React.CSSProperties = {
+    height: 40,
+    minWidth: 320,
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
+    padding: "0 12px",
+    background: "#fff",
+    color: "#111827",
+    boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
+};
+
+const bannerInfo: React.CSSProperties = {
+    background: "#eef2ff",
+    color: "#3730a3",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    border: "1px solid #c7d2fe",
+};
+
+const bannerError: React.CSSProperties = {
+    background: "#fef2f2",
+    color: "#b91c1c",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    border: "1px solid #fecaca",
+};
+
+const grid: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr",
+    gap: 16,
+    alignItems: "start",
+};
+
+const leftCol: React.CSSProperties = { minHeight: 420 };
+const rightCol: React.CSSProperties = { position: "sticky", top: 16, alignSelf: "start" };
+
+const tabs: React.CSSProperties = { display: "flex", gap: 8, marginBottom: 12 };
+const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: "8px 14px",
+    border: active ? "1px solid #111827" : "1px solid #e5e7eb",
+    borderRadius: 999,
+    background: active ? "#111827" : "#fff",
+    color: active ? "#fff" : "#111827",
+    cursor: "pointer",
+    boxShadow: active ? "0 2px 6px rgba(0,0,0,0.12)" : "0 1px 2px rgba(0,0,0,0.05)",
+});
+
+const list: React.CSSProperties = { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 };
+
+const card: React.CSSProperties = {
+    border: "1px solid #e5e7eb",
+    borderRadius: 14,
+    padding: 12,
+    background: "#fff",
+    color: "#111827",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+};
+
+const cardSoft: React.CSSProperties = {
+    border: "1px solid #bbf7d0",
+    borderRadius: 14,
+    padding: 12,
+    background: "#f0fdf4",
+    color: "#065f46",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+};
+
+const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 };
+const muted: React.CSSProperties = { color: "#6b7280", fontSize: 13 };
+const chip: React.CSSProperties = {
+    border: "1px solid #e5e7eb",
+    borderRadius: 999,
+    padding: "2px 10px",
+    fontSize: 12,
+    background: "#fff",
+    color: "#111827",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+};
+
+const btnPrimary: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "1px solid #111827",
+    background: "#111827",
+    color: "#fff",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+};
+
+const btnDangerSm: React.CSSProperties = {
+    padding: "6px 8px",
+    borderRadius: 10,
+    border: "1px solid #ef4444",
+    background: "#fee2e2",
+    color: "#991b1b",
+    cursor: "pointer",
+};
+
+const pillDark: React.CSSProperties = {
+    border: "1px solid #111827",
+    borderRadius: 999,
+    padding: "2px 10px",
+    fontSize: 12,
+    background: "#111827",
+    color: "#fff",
+};
+const pillGreen: React.CSSProperties = {
+    border: "1px solid #16a34a",
+    borderRadius: 999,
+    padding: "2px 10px",
+    fontSize: 12,
+    background: "#16a34a",
+    color: "#fff",
+};
+
+const emptyBox: React.CSSProperties = {
+    padding: 14,
+    border: "1px dashed #e5e7eb",
+    borderRadius: 14,
+    background: "#fafafa",
+    color: "#374151",
+};
+
+const btnOne: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "1px solid #2563eb",
+    background: "#dbeafe",
+    color: "#1e3a8a",
+    cursor: "pointer",
+    fontWeight: 700,
+};
+const btnAll: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "1px solid #7c3aed",
+    background: "#ede9fe",
+    color: "#5b21b6",
+    cursor: "pointer",
+    fontWeight: 700,
+};
+const btnOneGreen: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "1px solid #16a34a",
+    background: "#dcfce7",
+    color: "#166534",
+    cursor: "pointer",
+    fontWeight: 700,
+};
+
+/* confirm */
+function confirmCancel(run: () => void) {
+    if (window.confirm("Bạn chắc chắn muốn hủy món này?")) run();
 }
