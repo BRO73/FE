@@ -6,6 +6,6 @@ import { RestPollSource } from "./sources/RestPollSource";
  * Sau này thêm WebSocket:
  * const { WsSource } = await import("./sources/WsSource"); return new WsSource();
  */
-export async function createKitchenSource(): Promise<IKitchenSource> {
+export async function createKitchenSource(): Promise<RestPollSource> {
     return new RestPollSource(3000);
 }

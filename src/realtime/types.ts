@@ -1,5 +1,6 @@
 // src/realtime/types.ts
-import type { KitchenTicket } from "@/api/kitchenApi";
+import type { KitchenTicketDto } from "@/api/kitchenApi";
+import {KitchenTicket} from "@/realtime/sources/RestPollSource.ts";
 
 export type TicketEvent =
     | { type: "BOARD_SNAPSHOT"; payload: { items: KitchenTicket[]; serverTime: string } }

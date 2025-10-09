@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useKitchen } from "../hooks/useKitchen";
 import type { KitchenTicketDto } from "../api/kitchenApi";
+import { fetchAllMenuItemsLite } from "../api/menuAvailability.api";
 
 type KitchenTicket = KitchenTicketDto;
 type TabKey = "priority" | "byDish" | "byTable";
@@ -15,9 +16,20 @@ type GroupDish = {
 };
 type GroupTable = { key: string; table: string; items: KitchenTicket[] };
 
+const HIGHLIGHT_MS = 2500;
+
 export default function KitchenDashboardPage() {
-    const { loading, error, tickets, connected, updateStatus, refresh, completeOneUnit, completeAllUnits, serveOneUnit } =
-        useKitchen({ intervalMs: 3000 });
+    const {
+        loading,
+        error,
+        tickets,
+        connected,
+        updateStatus,
+        refresh,
+        completeOneUnit,
+        completeAllUnits,
+        serveOneUnit,
+    } = useKitchen({ intervalMs: 3000 });
 
     const pending: KitchenTicket[] = Array.isArray(tickets?.pending) ? (tickets!.pending as KitchenTicket[]) : [];
     const working: KitchenTicket[] = Array.isArray(tickets?.inProgress) ? (tickets!.inProgress as KitchenTicket[]) : [];
@@ -25,6 +37,61 @@ export default function KitchenDashboardPage() {
 
     const [active, setActive] = useState<TabKey>("priority");
     const [q, setQ] = useState("");
+
+    // ==== Availability map: { menuItemId: true|false } ====
+    const [availabilityMap, setAvailabilityMap] = useState<Record<number, boolean>>({});
+    const loadAvailability = async (): Promise<void> => {
+        try {
+            const list = await fetchAllMenuItemsLite();
+            const m: Record<number, boolean> = {};
+            for (const it of list) m[it.id] = it.available;
+            setAvailabilityMap(m);
+        } catch { /* ignore */ }
+    };
+    useEffect(() => { void loadAvailability(); }, []);
+    useEffect(() => { const id = window.setInterval(() => { void loadAvailability(); }, 5000); return () => window.clearInterval(id); }, []);
+    useEffect(() => { const onFocus = () => { void loadAvailability(); }; window.addEventListener("focus", onFocus); return () => window.removeEventListener("focus", onFocus); }, []);
+    const isUnavailable = (menuItemId?: number): boolean =>
+        typeof menuItemId === "number" && availabilityMap[menuItemId] === false;
+
+    // ==== Hiệu ứng "mới" (xanh) & "rollback" (vàng) ====
+    const [newWork, setNewWork] = useState<Record<number, true>>({});
+    const [newReady, setNewReady] = useState<Record<number, true>>({});
+    const [rollbackWork, setRollbackWork] = useState<Record<number, true>>({}); // chỉ áp ở cột/trái
+    const prevWorkIds = useRef<Set<number>>(new Set());
+    const prevReadyIds = useRef<Set<number>>(new Set());
+
+    const addTemp = (setter: React.Dispatch<React.SetStateAction<Record<number, true>>>, id: number) => {
+        setter(prev => ({ ...prev, [id]: true }));
+        window.setTimeout(() => setter(prev => {
+            const { [id]: _, ...rest } = prev;
+            return rest;
+        }), HIGHLIGHT_MS);
+    };
+
+    // Phát hiện item "mới" ở cột/trái (pending+working)
+    useEffect(() => {
+        const curr = new Set<number>([...pending, ...working].map(t => t.orderDetailId));
+        curr.forEach(id => { if (!prevWorkIds.current.has(id)) addTemp(setNewWork, id); });
+        prevWorkIds.current = curr;
+    }, [pending, working]);
+
+    // Phát hiện item "mới" ở cột/phải (ready)
+    useEffect(() => {
+        const curr = new Set<number>(ready.map(t => t.orderDetailId));
+        curr.forEach(id => { if (!prevReadyIds.current.has(id)) addTemp(setNewReady, id); });
+        prevReadyIds.current = curr;
+    }, [ready]);
+
+    const onRollback = async (t: KitchenTicket): Promise<void> => {
+        addTemp(setRollbackWork, t.orderDetailId);
+        try {
+            await updateStatus(t.orderDetailId, "IN_PROGRESS");
+            await onRefreshAll();
+        } catch {
+            setRollbackWork(prev => { const { [t.orderDetailId]: _, ...rest } = prev; return rest; });
+        }
+    };
 
     const matchQ = (s?: string) => (q ? (s || "").toLowerCase().includes(q.toLowerCase()) : true);
 
@@ -78,6 +145,45 @@ export default function KitchenDashboardPage() {
         return list;
     }, [pending, working, q]);
 
+    const onRefreshAll = async (): Promise<void> => {
+        await Promise.allSettled([refresh(), loadAvailability()]);
+    };
+
+    // Helpers style ưu tiên: đỏ (hết món) > vàng (rollback) > xanh (mới)
+    const styleCardPriority = (t: KitchenTicket): React.CSSProperties => {
+        if (isUnavailable(t.menuItemId)) return { border: "1px solid #dc2626", boxShadow: "0 1px 0 0 #fecaca inset" };
+        if (rollbackWork[t.orderDetailId]) return { border: "1px solid #f59e0b", background: "#fffbeb" };
+        if (newWork[t.orderDetailId]) return { border: "1px solid #16a34a", boxShadow: "0 0 0 2px #dcfce7 inset" };
+        return {};
+    };
+    const styleTitlePriority = (t: KitchenTicket): React.CSSProperties => {
+        if (isUnavailable(t.menuItemId)) return { color: "#dc2626", fontWeight: 800 };
+        if (rollbackWork[t.orderDetailId]) return { color: "#92400e", fontWeight: 800 };
+        return { color: "#111827", fontWeight: 700 };
+    };
+
+    const styleCardReady = (t: KitchenTicket): React.CSSProperties => {
+        if (isUnavailable(t.menuItemId)) return { border: "1px solid #dc2626" };
+        if (newReady[t.orderDetailId]) return { border: "1px solid #16a34a" };
+        return {};
+    };
+    const styleTitleReady = (t: KitchenTicket): React.CSSProperties => {
+        if (isUnavailable(t.menuItemId)) return { color: "#dc2626", fontWeight: 800 };
+        return { color: "#065f46", fontWeight: 700 };
+    };
+
+    const canCancel = (s?: string) => {
+        const n = normStatus(s);
+        return n === "PENDING" || n === "IN_PROGRESS";
+    };
+
+    const cancelOutOfStock = async (t: KitchenTicket) => {
+        const ok = window.confirm("Món đã HẾT. Bạn có muốn HỦY vé này khỏi bếp?");
+        if (!ok) return;
+        await updateStatus(t.orderDetailId, "CANCELED");
+        await onRefreshAll();
+    };
+
     return (
         <div style={page}>
             <header style={header}>
@@ -86,8 +192,13 @@ export default function KitchenDashboardPage() {
                     <span title={connected ? "Đang kết nối nguồn dữ liệu" : "Mất kết nối"}>{connected ? "🟢" : "🔴"}</span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                    <input placeholder="Tìm theo tên món / số bàn (F3)" value={q} onChange={(e) => setQ(e.target.value)} style={searchInput} />
-                    <button onClick={() => refresh()} style={btnPrimary}>
+                    <input
+                        placeholder="Tìm theo tên món / số bàn (F3)"
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        style={searchInput}
+                    />
+                    <button onClick={() => void onRefreshAll()} style={btnPrimary}>
                         Làm mới
                     </button>
                 </div>
@@ -97,7 +208,6 @@ export default function KitchenDashboardPage() {
             {!loading && error && <div style={bannerError}>Lỗi: {error}</div>}
 
             <div style={grid}>
-               
                 <section style={leftCol}>
                     <div style={tabs}>
                         <button onClick={() => setActive("priority")} style={tabBtn(active === "priority")}>
@@ -118,31 +228,57 @@ export default function KitchenDashboardPage() {
                         ) : (
                             <ul style={list}>
                                 {priorityList.map((t) => {
-                                    const showActions = isPending(t.status) || isInProgress(t.status);
-                                    return (
-                                        <li key={`p-${t.orderDetailId}`} style={card}>
-                                            <div style={row}>
-                                                <strong style={{ color: "#111827" }}>{t.dishName}</strong>
-                                                <QtyBadge qty={t.quantity} />
-                                            </div>
-                                            <div style={muted}>
-                                                Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId} {t.orderedAt ? `• ${fmtTime(t.orderedAt)}` : ""}
-                                            </div>
-                                            {t.notes ? <div style={{ ...muted, fontStyle: "italic" }}>Ghi chú: {t.notes}</div> : null}
+                                    // Ẩn > và >> nếu HẾT MÓN, nhưng vẫn HIỆN nút HỦY để dọn khỏi dashboard
+                                    const showActions = (isPending(t.status) || isInProgress(t.status)) && !isUnavailable(t.menuItemId);
+                                    const showBadgeRollback = rollbackWork[t.orderDetailId];
+                                    const showBadgeNew = newWork[t.orderDetailId] && !showBadgeRollback;
+                                    const showCancelBecauseOOS = isUnavailable(t.menuItemId) && canCancel(t.status);
 
+                                    return (
+                                        <li key={`p-${t.orderDetailId}`} style={{ ...card, ...styleCardPriority(t) }}>
+                                            <div style={row}>
+                                                <strong style={styleTitlePriority(t)}>{t.dishName}</strong>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                    {showBadgeRollback && <Badge color="#f59e0b">ROLLBACK</Badge>}
+                                                    {showBadgeNew && <Badge color="#16a34a">MỚI</Badge>}
+                                                    {isUnavailable(t.menuItemId) && <Badge color="#dc2626">HẾT MÓN</Badge>}
+                                                    <QtyBadge qty={t.quantity} />
+                                                </div>
+                                            </div>
+
+                                            <div style={{ ...row, marginTop: 6 }}>
+                                                <div style={muted}>
+                                                    Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId} {t.orderedAt ? `• ${fmtTime(t.orderedAt)}` : ""}
+                                                    {t.notes ? <span style={{ fontStyle: "italic" }}> • Ghi chú: {t.notes}</span> : null}
+                                                </div>
+
+                                                {/* Nút HỦY riêng khi HẾT MÓN để dọn vé khỏi dashboard */}
+                                                {showCancelBecauseOOS && (
+                                                    <button
+                                                        style={btnDangerSm}
+                                                        title="Hủy vé vì món đã hết"
+                                                        onClick={() => void cancelOutOfStock(t)}
+                                                    >
+                                                        Hủy
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Khi còn hàng: hiện các action nấu/báo xong/hủy như cũ */}
                                             {showActions && (
                                                 <div style={{ ...row, marginTop: 8, gap: 6, justifyContent: "flex-end" }}>
-
                                                     {t.quantity >= 2 && (
                                                         <button title="Hoàn tất 1 đơn vị" style={btnOne} onClick={() => completeOneUnit(t.orderDetailId)}>
                                                             &gt;
                                                         </button>
                                                     )}
-
                                                     <button title="Hoàn tất toàn bộ" style={btnAll} onClick={() => completeAllUnits(t.orderDetailId)}>
                                                         &gt;&gt;
                                                     </button>
-                                                    <button style={btnDangerSm} onClick={() => confirmCancel(() => updateStatus(t.orderDetailId, "CANCELED"))}>
+                                                    <button
+                                                        style={btnDangerSm}
+                                                        onClick={() => confirmCancel(() => updateStatus(t.orderDetailId, "CANCELED"))}
+                                                    >
                                                         Hủy
                                                     </button>
                                                 </div>
@@ -195,7 +331,9 @@ export default function KitchenDashboardPage() {
                                         <ul style={{ ...list, marginTop: 8 }}>
                                             {g.items.map((t) => (
                                                 <li key={t.orderDetailId} style={{ ...row, padding: "6px 0", borderBottom: "1px dashed #eee" }}>
-                                                    <span>{t.dishName}</span>
+                          <span style={isUnavailable(t.menuItemId) ? { color: "#dc2626", fontWeight: 600 } : undefined}>
+                            {t.dishName}
+                          </span>
                                                     <span>x{t.quantity}</span>
                                                 </li>
                                             ))}
@@ -212,7 +350,7 @@ export default function KitchenDashboardPage() {
                     <h3 style={{ marginTop: 0, color: "#111827" }}>Đã xong / Chờ cung ứng</h3>
                     {ready.length === 0 ? (
                         <EmptyBox title="Chưa có món mới hoàn tất.">
-                            <button onClick={() => refresh()} style={btnPrimary}>
+                            <button onClick={() => void onRefreshAll()} style={btnPrimary}>
                                 Làm mới
                             </button>
                         </EmptyBox>
@@ -225,25 +363,35 @@ export default function KitchenDashboardPage() {
                                     const tb = b.orderedAt ? Date.parse(b.orderedAt) : 0;
                                     return tb - ta;
                                 })
-                                .map((t) => (
-                                    <li key={`r-${t.orderDetailId}`} style={cardSoft}>
-                                        <div style={row}>
-                                            <strong style={{ color: "#065f46" }}>{t.dishName}</strong>
-                                            <QtyBadge qty={t.quantity} accent="green" />
-                                        </div>
-                                        <div style={{ ...muted, color: "#065f46" }}>
-                                            Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId}
-                                        </div>
-                                        <div style={{ ...row, marginTop: 8, gap: 6, justifyContent: "flex-end" }}>
-                                            {t.quantity > 2 && (
-                                                <button title="Xuất 1 đơn vị" style={btnOneGreen} onClick={() => serveOneUnit(t.orderDetailId)}>
-                                                    &gt;
+                                .map((t) => {
+                                    const showBadgeNew = newReady[t.orderDetailId];
+                                    return (
+                                        <li key={`r-${t.orderDetailId}`} style={{ ...cardSoft, ...styleCardReady(t) }}>
+                                            <div style={row}>
+                                                <strong style={styleTitleReady(t)}>{t.dishName}</strong>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                    {showBadgeNew && <Badge color="#16a34a">MỚI</Badge>}
+                                                    {isUnavailable(t.menuItemId) && <Badge color="#dc2626">HẾT MÓN</Badge>}
+                                                    <QtyBadge qty={t.quantity} accent="green" />
+                                                </div>
+                                            </div>
+                                            <div style={{ ...muted, color: "#065f46" }}>
+                                                Bàn: <b>{t.tableNumber}</b> • ID: {t.orderDetailId}
+                                            </div>
+                                            <div style={{ ...row, marginTop: 8, gap: 6, justifyContent: "flex-end" }}>
+                                                {/* Rollback về đang nấu (DONE -> IN_PROGRESS) */}
+                                                <button title="Rollback về đang nấu" style={btnRollback} onClick={() => void onRollback(t)}>
+                                                    ↩︎
                                                 </button>
-                                            )}
-                                            {/* Nếu muốn thêm “>> Xuất hết”, có thể thêm sau */}
-                                        </div>
-                                    </li>
-                                ))}
+                                                {t.quantity > 2 && (
+                                                    <button title="Xuất 1 đơn vị" style={btnOneGreen} onClick={() => serveOneUnit(t.orderDetailId)}>
+                                                        &gt;
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </li>
+                                    );
+                                })}
                         </ul>
                     )}
                 </aside>
@@ -265,6 +413,22 @@ function QtyBadge({ qty, accent }: { qty: number; accent?: "green" | "gray" }) {
     const style = accent === "green" ? pillGreen : pillDark;
     return <span style={style}>x{qty}</span>;
 }
+function Badge({ children, color }: { children: React.ReactNode; color: string }) {
+    return (
+        <span
+            style={{
+                fontSize: 12,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: color,
+                color: "#fff",
+                lineHeight: 1.6,
+            }}
+        >
+      {children}
+    </span>
+    );
+}
 
 /* ===== Helpers ===== */
 function fmtTime(iso: string): string {
@@ -283,7 +447,7 @@ function isInProgress(s?: string) {
     return normStatus(s) === "IN_PROGRESS";
 }
 
-/* ===== Styles – nền xám ấm, chữ đậm, card nổi (không trắng xoá nữa) ===== */
+/* ===== Styles ===== */
 const page: React.CSSProperties = {
     padding: 16,
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto",
@@ -449,6 +613,15 @@ const btnOneGreen: React.CSSProperties = {
     border: "1px solid #16a34a",
     background: "#dcfce7",
     color: "#166534",
+    cursor: "pointer",
+    fontWeight: 700,
+};
+const btnRollback: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "1px solid #f59e0b",
+    background: "#fef3c7",
+    color: "#92400e",
     cursor: "pointer",
     fontWeight: 700,
 };

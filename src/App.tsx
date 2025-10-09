@@ -16,6 +16,8 @@ import ReportsPage from "./pages/ReportsPage";
 import TransactionsPage from "./pages/TransactionsPage";
 
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
+import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
+
 
 import NotFound from "./pages/NotFound";
 import MenuPage from "./pages/MenuPage";
@@ -32,6 +34,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/menu" element={<MenuPage />} />
+              <Route path="/admin/menu-availability" element={<MenuAvailabilityPage />} />
+
               <Route path="/kitchen" element={<KitchenDashboardPage />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
 
