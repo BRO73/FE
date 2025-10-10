@@ -139,6 +139,22 @@ const Login = () => {
             </div>
           </form>
 
+          <div className="pt-4">
+            <LoadingButton type="submit" loading={loading}>
+              Đăng nhập
+            </LoadingButton>
+
+            {/* 🔥 Nút đăng nhập OTP Firebase */}
+            <button
+              type="button"
+              onClick={() => navigate("/otp-login")}
+              className="mt-3 w-full py-2 rounded-2xl border border-gray-300 hover:bg-gray-100 transition"
+            >
+              Đăng nhập bằng số điện thoại (OTP)
+            </button>
+          </div>
+
+
           <div className="text-center mt-6">
             <Link to="/register" className="btn-link">
               Bạn chưa có tài khoản? Đăng ký ngay
