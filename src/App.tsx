@@ -21,7 +21,7 @@ import Register from "@/pages/Register.tsx";
 import FoodDetail from "./pages/FoodDetail";
 import CartItem from "./pages/CartItem";
 import MenuPage from "./pages/MenuPage";
-
+import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 
 
 const queryClient = new QueryClient();
@@ -40,6 +40,8 @@ const App = () => (
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
+            <Route path="/otp-login" element={<FirebaseOtpLogin />} />
+
 
 
             <Route path="/admin" element={<DashboardLayout />}>
