@@ -16,12 +16,13 @@ import {
 import api from "@/api/axiosInstance"; 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD8hix0NuxQVeE-9CmRjW7MLlwel6MYwPI",
-  authDomain: "login-otp-swp301.firebaseapp.com",
-  projectId: "login-otp-swp301",
-  storageBucket: "login-otp-swp301.firebasestorage.app",
-  messagingSenderId: "336452696231",
-  appId: "1:336452696231:web:c2db565166954183fbc382"
+  apiKey: "AIzaSyCkI-cejUKdK7AWEAHAcBDpO5UGGzigTGU",
+  authDomain: "otp-sms-58177.firebaseapp.com",
+  projectId: "otp-sms-58177",
+  storageBucket: "otp-sms-58177.firebasestorage.app",
+  messagingSenderId: "201395098559",
+  appId: "1:201395098559:web:0dbb3407ad17051628c70a",
+  measurementId: "G-Y0920K5QQ3"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -74,8 +75,8 @@ const FirebaseOtpLogin: React.FC = () => {
     }
   };
 
-  // ✅ Xác thực OTP
-  const verifyOtp = async () => {
+// ✅ Xác thực OTP
+const verifyOtp = async () => {
   const confirmationResult = confirmationResultRef.current;
   if (!confirmationResult || !otp) return log("Thiếu mã OTP.");
   setLoading(true);
@@ -85,100 +86,89 @@ const FirebaseOtpLogin: React.FC = () => {
     const user = result.user;
     const idToken = await user.getIdToken(true);
 
-    // Gọi backend để xác thực và lấy accessToken
     const resp = await api.post(`/auth/verify-firebase?idToken=${encodeURIComponent(idToken)}`);
-    localStorage.setItem("accessToken", resp.data.accessToken);
-    log("Đăng nhập thành công! Vui lòng hoàn tất hồ sơ.");
+    const data: { 
+      accessToken?: string; 
+      registrationToken?: string;
+    } = resp.data;
 
-    // Nếu backend trả flag isNewUser
-    if (resp.data.isNewUser) {
+    // ▼▼▼ LOGIC XỬ LÝ MỚI - KHÔNG CÒN LẠM DỤNG CATCH ▼▼▼
+
+    // Trường hợp 1: Người dùng cũ (server trả về accessToken)
+    if (data.accessToken) {
+      localStorage.setItem("accessToken", data.accessToken);
+      log("Đăng nhập thành công!");
+      window.location.href = "/dashboard";
+    } 
+    // Trường hợp 2: Người dùng mới (server trả về registrationToken)
+    else if (data.registrationToken) {
+      // Lưu token đăng ký này vào localStorage.
+      // Dùng chung key "accessToken" là một mẹo hay để hàm registerProfile không cần thay đổi.
+      localStorage.setItem("accessToken", data.registrationToken);
+      
+      log("Xác thực thành công. Vui lòng hoàn tất hồ sơ.");
       setStep("register");
-    } else {
-      window.location.href = "/";
+    } 
+    else {
+      throw new Error("Phản hồi từ máy chủ không hợp lệ.");
     }
 
   } catch (e: any) {
-    if (isAxiosError(e)) {
-      const status = e.response?.status;
-      const message = e.response?.data?.message || e.message;
-
-      if (status === 401) {
-        // 🔥 Nếu backend trả 401 → user chưa tồn tại
-        log("Tài khoản chưa tồn tại. Vui lòng hoàn tất hồ sơ đăng ký.");
-        setStep("register"); // 👉 chuyển qua form đăng ký
-        return;
-      }
-
-      log("Xác thực OTP thất bại: " + message);
-    } else {
-      log("Xác thực OTP thất bại: " + (e.message || String(e)));
-    }
+    // Khối catch này bây giờ chỉ xử lý các lỗi ngoại lệ thực sự.
+    const errorMessage = isAxiosError(e) 
+      ? e.response?.data?.message || e.message 
+      : (e.message || "Đã có lỗi xảy ra.");
+    log("Xác thực thất bại: " + errorMessage);
   } finally {
     setLoading(false);
   }
 };
 
-
-  // 👤 Đăng ký profile
-  const registerProfile = async () => {
-    if (!fullName) return log("Nhập họ tên.");
-    setLoading(true);
-    log("Đang xử lý...");
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        // Trường hợp token không có vì lý do nào đó, rollback luôn
-        throw { response: { status: 401 } }; 
-      }
-      
-      const resp = await api.post(
-        "/auth/register-customer",
-        {
-          phoneNumber: phone,
-          fullName,
-          email,
-          address,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      log("Hoàn tất! Tài khoản đã được tạo.");
-      console.log("Final response:", resp.data);
-      // Có thể chuyển hướng người dùng sau khi đăng ký thành công
-      window.location.href = "/dashboard";
-      
-    } catch (e: any) {
-      // =======================================================
-      // ▼▼▼ THAY ĐỔI LOGIC XỬ LÝ LỖI Ở ĐÂY ▼▼▼
-      // =======================================================
-      if (isAxiosError(e) && e.response?.status === 401) {
-        // Lỗi 401: Token không hợp lệ hoặc hết hạn -> Rollback!
-        log("Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.");
-        localStorage.removeItem("accessToken"); // Xóa token hỏng
-        setStep("phone"); // Đưa về bước nhập SĐT
-
-        // Reset các state để làm sạch form
-        setPhone("");
-        setOtp("");
-        setFullName("");
-        setEmail("");
-        setAddress("");
-        confirmationResultRef.current = null;
-      } else {
-        // Các lỗi khác (500, lỗi mạng, validation...)
-        const errorMessage = isAxiosError(e) ? e.response?.data?.message || e.message : e.message || String(e);
-        log("Đăng ký thất bại: " + errorMessage);
-      }
-      // =======================================================
-      // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
-      // =======================================================
-    } finally {
-      setLoading(false);
+// 👤 Đăng ký profile
+const registerProfile = async () => {
+  if (!fullName) return log("Nhập họ tên.");
+  setLoading(true);
+  log("Đang xử lý...");
+  try {
+    // Nó sẽ lấy `registrationToken` đã được lưu dưới key "accessToken"
+    const token = localStorage.getItem("accessToken");
+    
+    if (!token) {
+       // Ném ra một Error thực sự, không phải object tự tạo
+       throw new Error("Phiên đăng ký không hợp lệ. Vui lòng thử lại từ đầu.");
     }
-  };
+    
+    const resp = await api.post(
+      "/auth/register-customer",
+      { phoneNumber: phone, fullName, email, address },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // TỐI ƯU: Sau khi đăng ký thành công, backend nên trả về accessToken và refreshToken mới
+    // để người dùng được đăng nhập ngay lập tức.
+    if (resp.data.accessToken) {
+        localStorage.setItem("accessToken", resp.data.accessToken);
+    }
+
+    log("Hoàn tất! Tài khoản đã được tạo.");
+    window.location.href = "/dashboard";
+    
+  } catch (e: any) {
+    // Lỗi ở đây có thể là do validation (ví dụ email trùng) hoặc registrationToken hết hạn (401).
+    if (isAxiosError(e) && e.response?.status === 401) {
+      log("Phiên đăng ký đã hết hạn. Vui lòng thực hiện lại từ đầu.");
+      // Rollback về bước đầu tiên
+      localStorage.removeItem("accessToken");
+      setStep("phone");
+      // ... reset các state khác
+    } else {
+      const errorMessage = isAxiosError(e) ? e.response?.data?.message || e.message : e.message || "Lỗi không xác định";
+      log("Đăng ký thất bại: " + errorMessage);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
