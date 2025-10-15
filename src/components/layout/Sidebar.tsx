@@ -9,6 +9,7 @@ import {
   Megaphone,
   BarChart3,
   CreditCard,
+  ListChecks,
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const navigationItems = [
   { name: "Table Management", href: "/admin/tables", icon: Table },
   { name: "Staff Management", href: "/admin/staff", icon: Users },
   { name: "Menu Management", href: "/admin/menu", icon: ChefHat },
+  { name: "Menu Availability", href: "/admin/menu-availability", icon: ListChecks },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Feedback", href: "/admin/feedback", icon: MessageSquare },
   { name: "Promotions", href: "/admin/promotions", icon: Megaphone },
